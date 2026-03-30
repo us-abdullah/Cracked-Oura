@@ -15,10 +15,13 @@ class CommonProcessor(IngestionBase):
         records = []
         for _, row in df.iterrows():
             try:
+                bpm = self._parse_int(row.get('bpm'))
+                if bpm is None:
+                    continue
                 hr = HeartRate(
                     timestamp=self._parse_datetime(row.get('timestamp')),
-                    bpm=self._parse_int(row.get('bpm')),
-                    source=row.get('source')
+                    bpm=bpm,
+                    source=row.get('source') or ''
                 )
                 records.append(hr)
             except Exception as e:

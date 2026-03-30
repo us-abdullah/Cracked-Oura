@@ -224,7 +224,12 @@ class IngestionBase:
             val_str = val.strip()
             if not val_str:
                 return None
-            
+
+            # Handle CSV double-quote escaping (e.g. ""key"" -> "key")
+            val_str = val_str.replace('""', '"')
+            if val_str.startswith('"') and val_str.endswith('"'):
+                val_str = val_str[1:-1]
+
             # 1. JSON parse
             try:
                 parsed = json.loads(val_str)
