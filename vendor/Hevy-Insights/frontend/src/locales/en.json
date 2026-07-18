@@ -1,0 +1,535 @@
+{
+  "login": {
+    "welcome": "Welcome! Please login to continue.",
+    "api": {
+      "modeButton": "API Login",
+      "usernameOrEmail": "Username or Email",
+      "password": "Password",
+      "usernamePlaceholder": "Enter your username or email",
+      "passwordPlaceholder": "Enter your password",
+      "loginButton": "Login",
+      "loggingIn": "Logging in...",
+      "waitText": "Login is taking longer than usual. Obtaining token...",
+      "errors": {
+        "emptyFields": "Please enter both username/email and password",
+        "loginFailed": "Login failed. Please try again.",
+        "invalidCredentials": "Invalid credentials. Please try again."
+      }
+    },
+    "csv": {
+      "modeButton": "Upload CSV",
+      "description": "Before exporting your data from the Hevy app, ensure that your app language is set to English and that the weight unit is KG.",
+      "selectFile": "Select CSV File",
+      "dragDrop": "or drag and drop here",
+      "browse": "Browse Files",
+      "uploadButton": "Upload & Continue",
+      "uploading": "Uploading...",
+      "errors": {
+        "noFile": "Please select a CSV file",
+        "invalidFile": "Invalid file. Please select a valid CSV file (max 10MB)",
+        "emptyFile": "CSV file is empty or contains no workout data",
+        "uploadFailed": "Failed to upload CSV. Please check the file format."
+      }
+    },
+    "apikey": {
+      "linkText": "Enter Hevy PRO API Key",
+      "description": "Enter your Hevy PRO API key. You can get it from https://hevy.com/settings?developer",
+      "label": "API Key",
+      "placeholder": "Enter your Hevy PRO API key",
+      "loginButton": "Validate & Login",
+      "validating": "Validating...",
+      "errors": {
+        "emptyKey": "Please enter your API key",
+        "invalidKey": "Invalid API key. Please check and try again.",
+        "validationFailed": "Failed to validate API key. Please try again."
+      }
+    },
+    "madeBy": "Made by",
+    "tagline": "Track your fitness journey"
+  },
+  "nav": {
+    "brandTextFor": "for",
+    "dashboard": "Dashboard",
+    "workoutsCard": "Workouts (Card)",
+    "workoutsList": "Workouts (List)",
+    "exercises": "Exercises",
+    "bodyMeasurements": "Body Measurements",
+    "share": "Share",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Welcome back",
+    "sections": {
+      "plateausDetected": "Plateau Detected ({count})",
+      "recentPRs": "Recent Personal Records ({count})",
+      "trainingAnalysis": "Training Analysis",
+      "exerciseInsights": "Exercise Insights",
+      "calendarViews": "Calendar Views",
+      "muscleDistribution": "Muscle Distribution"
+    },
+    "filters": {
+      "all": "All",
+      "oneYear": "1Y",
+      "sixMonths": "6M",
+      "threeMonths": "3M",
+      "oneMonth": "1M",
+      "monthly": "Mo",
+      "weekly": "Wk"
+    },
+    "stats": {
+      "totalWorkouts": "Total Workouts",
+      "totalVolume": "Total Volume",
+      "avgVolume": "Avg Volume",
+      "totalHoursTrained": "Total Hours Trained",
+      "avgWorkoutTime": "Avg Workout Time",
+      "workoutStreak": "Workout Streak (Weeks)",
+      "mostTrainedExercise": "Most Trained Exercise",
+      "longestWorkout": "Longest Workout",
+      "sessions": "sessions",
+      "perWorkout": "per workout"
+    },
+    "prTypes": {
+      "best_weight": "Most Weight",
+      "best_max": "Best Max",
+      "best_1rm": "1RM",
+      "best_volume": "Best Volume",
+      "best_reps": "Most Reps",
+      "distance": "Distance",
+      "duration": "Duration"
+    },
+    "charts": {
+      "hoursTrained": "Hours Trained",
+      "hoursTrainedDescription": "Training duration over time",
+      "volumeProgression": "Volume Progression",
+      "volumeProgressionDescription": "Total weight lifted per period",
+      "repsAndSets": "Reps & Sets",
+      "repsAndSetsDescription": "Training volume breakdown",
+      "PRsOverTime": "PRs Over Time",
+      "PRsOverTimeDescription": "Personal records achieved",
+      "workoutCalendar": "Workout Calendar",
+      "workoutCalendarDescription": "Workout consistency over the last 12 months",
+      "weeklyRhythm": "Weekly Rhythm",
+      "weeklyRhythmDescription": "Training frequency by day",
+      "muscleDistribution": "Muscle Distribution",
+      "muscleDistributionDescription": "Sets by muscle group",
+      "muscleRegions": "Muscle Regions",
+      "muscleRegionsDescription": "Stacked breakdown by period",
+      "calendarWeek": "CW",
+      "notSupported": "This chart is not available when using Hevy PRO API Key. This feature requires username/password (OAuth) login.",
+      "muscleFilters": {
+        "groups": "GROUPS",
+        "muscles": "MUSCLE"
+      }
+    }
+  },
+  "workouts": {
+    "card": {
+      "title": "Workouts (Card)",
+      "subtitle": "Browse your workouts in a card design.",
+      "totalSets": "Total Sets",
+      "set": "Set",
+      "reps": "Reps"
+    },
+    "list": {
+      "title": "Workouts (List)",
+      "subtitle": "Browse your workouts in a detailed list format with contribution calendar.",
+      "searchContains": "Contains…",
+      "set": "Set",
+      "reps": "Reps"
+    }
+  },
+  "exercises": {
+    "title": "Exercises",
+    "subtitle": "Detailed analysis and progress tracking for each exercise.",
+    "searchFilter": "Search exercises by name...",
+    "personalRecords": "Personal Records",
+    "neverTrained": "Never trained",
+    "filters": {
+      "30days": "30d",
+      "60days": "60d",
+      "90days": "90d",
+      "1year": "1y",
+      "allTime": "All"
+    },
+    "summary": {
+      "total": "Total",
+      "active": "Active"
+    },
+    "lastTrained": {
+      "today": "Last trained today",
+      "yesterday": "Last trained yesterday",
+      "daysAgo": "Last trained {days} days ago",
+      "weeksAgo": "Last trained {weeks} week(s) ago",
+      "monthsAgo": "Last trained {months} month(s) ago"
+    },
+    "stats": {
+      "statsHeader": "Stats",
+      "totalSessions": "Total Sessions"
+    },
+    "insights": {
+      "plateauBadge": "Plateau",
+      "gainingBadge": "Gaining",
+      "losingBadge": "Declining",
+      "insufficientBadge": "New",
+      "inactiveBadge": "Inactive",
+      "maintainingBadge": "Maintaining",
+      "plateau": "Your top set has hovered around {weight} for {repsMin}-{repsMax} reps. Try adding more weight or reps to break the plateau!",
+      "plateauCardio": "Your performance has plateaued around {metric}. Try increasing distance or pace!",
+      "gaining": "You've increased by {weightChange} or {repsChange} reps over your last {sessions} sessions!",
+      "gainingCardio": "Great progress! You've improved by {change}% over your last {sessions} sessions!",
+      "losing": "Performance decreased by {weightChange} or {repsChange} reps over your last {sessions} sessions. Consider rest or form check.",
+      "losingCardio": "Performance decreased by {change}% over your last {sessions} sessions. Consider rest or check your training.",
+      "insufficient": "Not enough data yet. Need at least {needed} sessions, currently have {sessions}.",
+      "inactive": "Not trained in {days} days. Resume training to track progress!",
+      "maintaining": "Performance is stable. You're maintaining your current strength level."
+    },
+    "graphs": {
+      "maxWeight": "Max Weight (Over Time)",
+      "repVolume": "Rep Volume (Over Time)",
+      "totalReps": "Total Reps",
+      "avgVolume": "Avg Volume per Set",
+      "weightVsReps": "Max Weight vs Reps",
+      "volumeSession": "Volume (Session - all sets that day)",
+      "labels": {
+        "maxWeight": "Max Weight",
+        "repVolume": "Rep Volume",
+        "totalReps": "Total Reps",
+        "avgVolume": "Avg Volume per Set"
+      },
+      "axis": {
+        "weightVsReps": {
+          "x": "Reps at Max Weight",
+          "y": "Max Weight"
+        },
+        "volumeSession": {
+          "x": "Date",
+          "y": "Volume"
+        }
+      }
+    },
+    "warnings": {
+      "repVolumeTitle": "Not available with Hevy PRO API key login mode!",
+      "repVolumeMessage": "Cannot calculate bodyweight exercise rep volume without bodyweight data. This feature requires username/password (OAuth) login since that method uses the body measurement API endpoints.",
+      "noBodyweight": "No bodyweight has been set."
+    },
+    "equipment": {
+      "title": "Manage Equipment/Vendors",
+      "info": "Create equipment variants for exercises done on different machines/vendors. Add keywords to match against exercise notes in Hevy.",
+      "exerciseTitle": "Exercise Name",
+      "selectExercise": "Select a trained exercise",
+      "exerciseTitleHint": "Required: Choose one of your already trained exercises",
+      "exerciseTitlePlaceholder": "e.g., Lat Pulldown",
+      "equipmentName": "Equipment/Vendor Name",
+      "equipmentNamePlaceholder": "e.g. Gym80, Hammer Strength, ...",
+      "searchKeyword": "Search Keyword",
+      "searchKeywordPlaceholder": "Keyword to search in exercise notes",
+      "searchKeywordHint": "This keyword will be searched in exercise notes/descriptions to filter workouts",
+      "imageUrl": "Image URL (Optional)",
+      "imageUrlPlaceholder": "https://...",
+      "add": "Add Equipment",
+      "update": "Update",
+      "cancel": "Cancel",
+      "configured": "Configured Equipment",
+      "noEquipment": "No equipment configured yet",
+      "keyword": "Keyword",
+      "confirmDelete": "Are you sure you want to delete this equipment configuration?",
+      "fillRequired": "Please fill in all required fields",
+      "noTrainedExercises": "No trained exercises available yet",
+      "filter": "Equipment/Vendor",
+      "allEquipment": "All Equipment",
+      "edit": "Edit",
+      "delete": "Delete"
+    }
+  },
+  "share": {
+    "title": "Share Your Progress",
+    "subtitle": "Create beautiful cards to share your achievements on social media",
+    "downloadBtn": "Download Card",
+    "downloaded": "Image downloaded successfully!",
+    "generating": "Generating...",
+    "generateFailed": "Failed to generate image. Please try again.",
+    "sections": {
+      "cardGallery": "Choose Your Card Style",
+      "preview": "Preview & Share"
+    },
+    "cards": {
+      "workoutStreak": "Workout Streak",
+      "totalVolume": "Total Volume",
+      "personalRecords": "Personal Records",
+      "hoursTrained": "Hours Trained",
+      "topExercise": "Top Exercise",
+      "yearWrapped": "Year Wrapped"
+    },
+    "cardLabels": {
+      "streak": "Streak",
+      "totalVolume": "Total Volume",
+      "sessions": "sessions",
+      "trained": "trained",
+      "personalRecords": "Personal Records",
+      "prsAchieved": "PRs Achieved",
+      "workouts": "workouts",
+      "timeInvested": "Time Invested",
+      "hoursTrained": "Hours Trained",
+      "favoriteExercise": "Favorite Exercise",
+      "timesTrained": "times trained",
+      "totalWorkouts": "total workouts",
+      "wrappedTitle": "{year} wrapped",
+      "wrappedSubtitle": "Your year in review",
+      "weekStreak": "Week Streak",
+      "selectYear": "Select Year"
+    },
+    "cardMottos": {
+      "workoutStreak": "Keep crushing it!",
+      "workoutStreakFooter": "Consistency is the key to greatness • Track your journey", 
+      "strengthInNumbers": "Strength in numbers!",
+      "strengthInNumbersFooter": "Every rep counts • Building strength one workout at a time",
+      "breakingBarriers": "Breaking barriers!",
+      "breakingBarriersFooter": "Pushing limits • Setting new standards • Never settling",
+      "timeWellInvested": "Time well invested!",
+      "timeWellInvestedFooter": "Time dedicated to self-improvement • Progress over perfection",
+      "favoriteMove": "Your favorite move!",
+      "favoriteMoveFooter": "Mastering your craft • Focus and dedication pay off",
+      "yearInReview": "Your year in review!",
+      "yearInReviewFooter": "A year of growth and transformation • Here's to the next chapter"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Customize your Hevy Insights experience.",
+    "themes": {
+      "title": "Color Theme",
+      "description": "Choose your preferred color scheme for charts and accents",
+      "green": "Emerald/Cyan",
+      "purple": "Purple/Pink",
+      "blue": "Blue/Indigo",
+      "orange": "Orange/Red"
+    },
+    "language": {
+      "title": "Language",
+      "description": "Select your preferred language"
+    },
+    "dateTimeFormat": {
+      "title": "Date & Time Formats",
+      "description": "Customize how dates and times are displayed",
+      "dateFormat": "Date Format",
+      "graphAxisFormat": "Graph Axis Format"
+    },
+    "weightUnit": {
+      "title": "Weight Unit",
+      "description": "Choose your preferred weight unit for display",
+      "kg": "Kilogram",
+      "lbs": "Pound"
+    },
+    "plateauDetection": {
+      "title": "Plateau Detection",
+      "description": "Customize how many recent sessions to analyze for plateau detection",
+      "sessionsLabel": "Number of sessions to analyze:",
+      "hint": "Analyze your last N sessions to detect plateaus (minimum 3, maximum 100). Default is 5."
+    },
+    "updateCheck": {
+      "title": "Update Notifications",
+      "description": "Get notified when new versions are available",
+      "enableLabel": "Enable update notifications",
+      "hint": "Automatically check for new releases on GitHub. You can disable this if you prefer to check manually."
+    },
+    "dataManagement": {
+      "title": "Data Management",
+      "description": "View information about your data source",
+      "dataSource": "Data Source",
+      "csvNote": "You are using CSV mode. Data is stored locally, no API used."
+    },
+    "resetButton": "Reset to Default",
+    "saveButton": "Save & Return to Dashboard"
+  },
+  "global": {
+    "loadingSpinnerText": "Loading your data...",
+    "sw": {
+      "volume": "Volume",
+      "hours": "Hours",
+      "duration": "Duration",
+      "distance": "Distance",
+      "exercises": "Exercises",
+      "weight": "Weight",
+      "notes": "Notes",
+      "description": "Description",
+      "day": "Day",
+      "days": "days",
+      "weeks": "weeks",
+      "months": "months",
+      "years": "years",
+      "reps": "reps",
+      "height": "Height",
+      "reset": "Reset",
+      "stable": "Stable",
+      "entry": "Entry",
+      "retry": "Retry",
+      "since": "Since",
+      "date": "Date",
+      "cancel": "Cancel",
+      "save": "Save",
+      "prs": "PRs"
+    },
+    "days": {
+      "mondayLong": "Monday",
+      "tuesdayLong": "Tuesday",
+      "wednesdayLong": "Wednesday",
+      "thursdayLong": "Thursday",
+      "fridayLong": "Friday",
+      "saturdayLong": "Saturday",
+      "sundayLong": "Sunday",
+      "mondayShort": "Mon",
+      "tuesdayShort": "Tue",
+      "wednesdayShort": "Wed",
+      "thursdayShort": "Thu",
+      "fridayShort": "Fri",
+      "saturdayShort": "Sat",
+      "sundayShort": "Sun"
+    },
+    "months": {
+      "januaryLong": "January",
+      "februaryLong": "February",
+      "marchLong": "March",
+      "aprilLong": "April",
+      "mayLong": "May",
+      "juneLong": "June",
+      "julyLong": "July",
+      "augustLong": "August",
+      "septemberLong": "September",
+      "octoberLong": "October",
+      "novemberLong": "November",
+      "decemberLong": "December",
+      "januaryShort": "Jan",
+      "februaryShort": "Feb",
+      "marchShort": "Mar",
+      "aprilShort": "Apr",
+      "mayShort": "May",
+      "juneShort": "Jun",
+      "julyShort": "Jul",
+      "augustShort": "Aug",
+      "septemberShort": "Sep",
+      "octoberShort": "Oct",
+      "novemberShort": "Nov",
+      "decemberShort": "Dec"
+    },
+    "bodymuscles": {
+      "chest": "Chest",
+      "back": "Back",
+      "shoulders": "Shoulders",
+      "arms": "Arms",
+      "core": "Core",
+      "legs": "Legs",
+      "abdominals": "Abdominals",
+      "abductors": "Abductors",
+      "adductors": "Adductors",
+      "biceps": "Biceps",
+      "calves": "Calves",
+      "glutes": "Glutes",
+      "hamstrings": "Hamstrings",
+      "lats": "Lats",
+      "lower_back": "Lower Back",
+      "quadriceps": "Quadriceps",
+      "triceps": "Triceps",
+      "upper_back": "Upper Back"
+    },
+    "pagination": {
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last",
+      "indicator": "Page {current} of {total}"
+    },
+    "searchFilter": {
+      "byNumber": "By Number",
+      "byName": "Name"
+    },
+    "timeRangeFilter": {
+      "timeRange": "Time Range",
+      "allTime": "All",
+      "lastWeek": "Last Week",
+      "lastMonth": "Last Month",
+      "last3Months": "Last 3 Months",
+      "last6Months": "Last 6 Months",
+      "last12Months": "Last 12 Months"
+    },
+    "footer": {
+      "contact": "Contact me",
+      "donate": "Buy me a coffee",
+      "github": "Star on GitHub",
+      "bugReport": "Report a bug",
+      "madeBy": "Made with ❤️ by {author}"
+    },
+    "update": {
+      "title": "Update Available!",
+      "message": "Version {version} is now available.",
+      "viewRelease": "View Release"
+    }
+  },
+  "bodyMeasurements": {
+    "title": "Body Measurements",
+    "subtitle": "Track your weight and body composition over time",
+    "addMeasurement": "Add Measurement",
+    "bmiCategory": {
+      "underweightSevere": "Underweight (Severe)",
+      "underweightModerate": "Underweight (Moderate)",
+      "underweightMild": "Underweight (Mild)",
+      "normal": "Normal",
+      "overweight": "Overweight",
+      "obesityClassI": "Obese (Class I)",
+      "obesityClassII": "Obese (Class II)",
+      "obesityClassIII": "Obese (Class III)"
+    },
+    "ffmiCategory": {
+      "belowAverage": "Below Average",
+      "average": "Average",
+      "aboveAverage": "Above Average",
+      "excellent": "Excellent",
+      "superior": "Superior"
+    },
+    "proApiWarning": {
+      "title": "Feature not available with Hevy PRO API key login mode!",
+      "message": "To track body measurements, you need to login with Hevy username/password login method since that method uses the body measurement API endpoints."
+    },
+    "currentWeight": "Current Weight",
+    "bmi": "BMI",
+    "bfp": "Body Fat %",
+    "ffmi": "FFMI",
+    "totalEntries": "Total Entries",
+    "weightChange": "Weight Change",
+    "weightProgress": "Weight Progress",
+    "measurementHistory": "Measurement History",
+    "noMeasurements": "No measurements yet. Start tracking your progress!",
+    "addFirst": "Add your first measurement",
+    "change": "Change (to last entry)",
+    "enterWeight": "Enter weight",
+    "enterBodyFat": "Enter body fat in %",
+    "bodyFatNote": "Optional. Required for FFMI calculation. Can be measured with body composition scales or calipers.",
+    "enterHeight": "Enter height",
+    "heightNote": "Height is used to calculate BMI and FFMI. This will be saved for future use."
+  },
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your personal information and preferences",
+    "loading": "Loading profile...",
+    "userInfo": {
+      "title": "User Information",
+      "username": "Username",
+      "email": "Email",
+      "birthday": "Birthday",
+      "bio": "Bio"
+    },
+    "heightSettings": {
+      "title": "Height Settings",
+      "description": "Set your height to calculate BMI and FFMI. This setting is used across all your body measurements.",
+      "save": "Save Height",
+      "saving": "Saving...",
+      "heightNote": "Your height will be saved and used for BMI and FFMI calculations in body measurements.",
+      "heightSaved": "Height saved successfully!",
+      "currentHeight": "Current Height",
+      "noHeightSet": "No height has been set yet. Enter your height above to get started.",
+      "warningTooHigh": "This height value seems unusually high (>250cm). Please verify your input.",
+      "warningTooLow": "This height value seems low (<150cm). Please verify your input."
+    }
+  }
+}

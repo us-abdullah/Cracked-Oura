@@ -1,10 +1,15 @@
 from fastapi import FastAPI, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from backend.src.api.routes import router
-from backend.src.database import init_db
+from backend.src.api.routes_hevy import router as hevy_router
+from backend.src.api.routes_health import router as health_router
+from backend.src.api.routes_hevy_insights import router as hevy_insights_router
+from backend.src.api.routes_cloud import router as cloud_router
+from backend.src.database import init_db, SessionLocal
 
 import asyncio
 import logging
+import sys
 from datetime import datetime, timedelta
 from backend.src.automation import automator
 from backend.src.ingestion import OuraParser
@@ -14,6 +19,10 @@ import os
 from pydantic import BaseModel
 
 from contextlib import asynccontextmanager
+
+# Playwright needs ProactorEventLoop subprocess support on Windows
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Configure logging
 from backend.src.paths import get_user_data_dir
@@ -44,6 +53,39 @@ async def lifespan(app: FastAPI):
     if cfg.get("status") not in ["Idle", "Error"]:
         logger.info("Startup: Resetting stuck status to Idle.")
         config_manager.update_status("Idle")
+
+    # Warm the local LLM so the first chat isn't a multi-minute cold start
+    async def _warm_llm():
+        try:
+            def _ping():
+                from backend.src.llm import DataAnalyst
+                DataAnalyst().llm.invoke("Reply with OK")
+            await asyncio.to_thread(_ping)
+            logger.info("LLM warmup complete.")
+        except Exception as e:
+            logger.warning(f"LLM warmup skipped: {e}")
+
+    asyncio.create_task(_warm_llm())
+
+    # Pull Health Google Sheets once on startup (non-blocking)
+    async def _warm_health_sheets():
+        try:
+            from backend.src.health import sheets_sync as health_sheets
+
+            def _run():
+                health_sheets.ensure_sheet_defaults()
+                db = SessionLocal()
+                try:
+                    return health_sheets.sync_all(db)
+                finally:
+                    db.close()
+
+            result = await asyncio.to_thread(_run)
+            logger.info("Health sheets startup sync: %s", result.get("status"))
+        except Exception as e:
+            logger.warning("Health sheets startup sync skipped: %s", e)
+
+    asyncio.create_task(_warm_health_sheets())
         
     # Start background worker
     task = asyncio.create_task(background_worker())
@@ -54,22 +96,25 @@ async def lifespan(app: FastAPI):
     # task.cancel()
 
 app = FastAPI(
-    title="Cracked Oura API",
-    description="API for accessing Oura Ring data stored in local SQLite database.",
+    title="Usman Biotracker API",
+    description="API for Recovery (Oura), Training (Hevy), and Health data.",
     version="0.1.0",
     lifespan=lifespan
 )
 
-# Configure CORS
-origins = [
-    "http://localhost",
-    "http://localhost:3000", # Frontend
-    "http://localhost:8000", # Backend
-]
-
+# Configure CORS — Electron (null), local Vite, Vercel companion, Cloudflare tunnels
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "null",
+        "http://localhost:5173",
+        "http://localhost:5175",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5175",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.trycloudflare\.com|https://.*\.up\.railway\.app|https://.*\.onrender\.com|https://.*\.fly\.dev|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -77,6 +122,10 @@ app.add_middleware(
 
 # Include routers
 app.include_router(router)
+app.include_router(hevy_router)
+app.include_router(health_router)
+app.include_router(hevy_insights_router)
+app.include_router(cloud_router)
 
 # --- API Models for Automation ---
 class AutomationConfig(BaseModel):
@@ -340,17 +389,35 @@ async def background_worker():
             
             # Calculate next run time for display
             schedule_time_str = cfg.get("schedule_time", "11:00")
+            # Oura exports often take ~7 days; default to weekly auto-requests
+            sync_interval_days = int(cfg.get("sync_interval_days", 7) or 7)
             try:
                 sh, sm = map(int, schedule_time_str.split(":"))
                 run_today = now.replace(hour=sh, minute=sm, second=0, microsecond=0)
-                if now > run_today:
-                    next_run = run_today + timedelta(days=1)
+
+                last_run_dt = None
+                last_run_raw = cfg.get("last_run")
+                if last_run_raw:
+                    try:
+                        last_run_dt = datetime.strptime(str(last_run_raw), "%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        last_run_dt = None
+
+                if last_run_dt:
+                    next_run = last_run_dt + timedelta(days=sync_interval_days)
+                    next_run = next_run.replace(hour=sh, minute=sm, second=0, microsecond=0)
+                    if next_run <= now:
+                        next_run = run_today if now <= run_today else run_today + timedelta(days=1)
                 else:
-                    next_run = run_today
-                
+                    next_run = run_today if now <= run_today else run_today + timedelta(days=1)
+
                 config_manager.update_status(cfg.get("status", "Idle"), next_run=next_run.strftime("%Y-%m-%d %H:%M:%S"))
 
-                if now.hour == sh and now.minute == sm:
+                due_by_interval = True
+                if last_run_dt:
+                    due_by_interval = (now - last_run_dt) >= timedelta(days=sync_interval_days)
+
+                if now.hour == sh and now.minute == sm and due_by_interval:
                      await run_ingestion_task()
                 
                 # If in "Waiting" state, poll every 5 minutes            
@@ -358,6 +425,63 @@ async def background_worker():
                     if now.minute % 5 == 0:
                         logger.info("Background worker: Polling for export status...")
                         await run_ingestion_task()
+
+                # --- Hevy weekly sync (independent of Oura) ---
+                hevy_schedule = cfg.get("hevy_schedule_time", "11:30")
+                try:
+                    hh, hm = map(int, str(hevy_schedule).split(":"))
+                except Exception:
+                    hh, hm = 11, 30
+                hevy_last_raw = cfg.get("hevy_last_run")
+                hevy_last_dt = None
+                if hevy_last_raw:
+                    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
+                        try:
+                            hevy_last_dt = datetime.strptime(str(hevy_last_raw)[:26], fmt)
+                            break
+                        except Exception:
+                            continue
+                hevy_due = True
+                if hevy_last_dt:
+                    hevy_due = (now - hevy_last_dt) >= timedelta(days=sync_interval_days)
+                hevy_logged_in = bool(cfg.get("hevy_access_token") or cfg.get("hevy_refresh_token"))
+                if (
+                    hevy_logged_in
+                    and now.hour == hh
+                    and now.minute == hm
+                    and hevy_due
+                    and cfg.get("hevy_status") not in ("Syncing", "Logging in")
+                ):
+                    logger.info("Background worker: starting Hevy weekly sync...")
+                    def _hevy_sync():
+                        from backend.src.hevy import sync as hevy_sync
+                        db = SessionLocal()
+                        try:
+                            return hevy_sync.sync_all_workouts(db)
+                        finally:
+                            db.close()
+                    try:
+                        await asyncio.to_thread(_hevy_sync)
+                    except Exception as he:
+                        logger.error(f"Hevy auto-sync failed: {he}")
+                        config_manager.update_config(hevy_status=f"Error: {he}")
+
+                # --- Health Google Sheets sync (every N minutes) ---
+                try:
+                    from backend.src.health import sheets_sync as health_sheets
+
+                    if health_sheets.maybe_due(now):
+                        def _health_sync():
+                            db = SessionLocal()
+                            try:
+                                return health_sheets.sync_all(db)
+                            finally:
+                                db.close()
+
+                        logger.info("Background worker: syncing Health Google Sheets...")
+                        await asyncio.to_thread(_health_sync)
+                except Exception as hs:
+                    logger.error(f"Health sheets auto-sync failed: {hs}")
                      
             except Exception as e:
                 logger.error(f"Scheduler error: {e}")
@@ -371,11 +495,50 @@ async def background_worker():
 
 # Mount Static Files
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import os
 
-# Robustly find the frontend/dist directory relative to this file
-# engine/src/api/main.py -> ../../../frontend/dist
 current_dir = os.path.dirname(os.path.abspath(__file__))
+import sys
+_hi_candidates = []
+if getattr(sys, "frozen", False):
+    meipass = getattr(sys, "_MEIPASS", "")
+    exe_dir = os.path.dirname(sys.executable)
+    _hi_candidates.extend(
+        [
+            os.path.join(exe_dir, "hevy_insights_ui"),
+            os.path.join(meipass, "backend", "src", "hevy_insights_ui"),
+            os.path.join(meipass, "hevy_insights_ui"),
+        ]
+    )
+_hi_candidates.extend(
+    [
+        os.path.join(current_dir, "../hevy_insights_ui"),
+        os.path.join(current_dir, "../../../vendor/Hevy-Insights/frontend/dist"),
+        os.path.join(current_dir, "../../../frontend/public/hevy-insights"),
+    ]
+)
+hevy_insights_dist = next((p for p in _hi_candidates if os.path.isdir(p)), None)
+
+if hevy_insights_dist:
+    logger.info(f"Serving Hevy-Insights UI from {hevy_insights_dist}")
+
+    @app.get("/hevy-insights")
+    @app.get("/hevy-insights/")
+    async def hevy_insights_index():
+        return FileResponse(os.path.join(hevy_insights_dist, "index.html"))
+
+    @app.get("/hevy-insights/{full_path:path}")
+    async def hevy_insights_spa(full_path: str):
+        # Never allow path escape
+        candidate = os.path.normpath(os.path.join(hevy_insights_dist, full_path))
+        if not candidate.startswith(os.path.normpath(hevy_insights_dist)):
+            return FileResponse(os.path.join(hevy_insights_dist, "index.html"))
+        if os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(os.path.join(hevy_insights_dist, "index.html"))
+
+# Robustly find the frontend/dist directory relative to this file
 dist_dir = os.path.join(current_dir, "../../../frontend/dist")
 
 if os.path.exists(dist_dir):
@@ -387,27 +550,31 @@ else:
 if __name__ == "__main__":
     import uvicorn
     import sys
-    
+
+    port = int(os.getenv("PORT", "8000"))
+    host = "0.0.0.0" if os.getenv("BIOTRACKER_CLOUD") else "127.0.0.1"
+
     # Check if running as a PyInstaller bundle
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         try:
-            # Production (Frozen)
-            uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
+            uvicorn.run(app, host=host if os.getenv("BIOTRACKER_CLOUD") else "127.0.0.1", port=port, reload=False)
         except Exception as e:
-            # Emergency logging if startup fails
             from backend.src.paths import get_user_data_dir
-            import os
             import traceback
-            
+
             try:
                 log_path = os.path.join(get_user_data_dir(), "startup_crash.log")
                 with open(log_path, "w", encoding="utf-8") as f:
                     f.write(f"Startup Crash: {e}\n")
                     f.write(traceback.format_exc())
-            except:
-                pass # Failed to write log
+            except Exception:
+                pass
             raise e
     else:
-        # Development
-        # Run the server with auto-reload
-        uvicorn.run("backend.src.api.main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["backend"])
+        uvicorn.run(
+            "backend.src.api.main:app",
+            host=host,
+            port=port,
+            reload=not bool(os.getenv("BIOTRACKER_CLOUD")),
+            reload_dirs=["backend"] if not os.getenv("BIOTRACKER_CLOUD") else None,
+        )

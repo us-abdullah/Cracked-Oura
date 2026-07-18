@@ -48,15 +48,19 @@ export const WidgetRegistry = ({ widget, data, date, onUpdate }: WidgetRegistryP
             const metricValue = resolveData(widget.config.dataKey || '') || 0;
             const metricLabel = widget.config.dataKey || 'Metric';
 
-            // Special formatting for duration (if dataKey contains 'total' or 'duration')
-            let displayValue = metricValue;
+            let displayValue: string | number = metricValue;
             let unit = widget.config.unit;
 
-            if (widget.config.dataKey?.includes('sleep.total') || widget.config.dataKey?.includes('duration')) {
-                const hours = Math.floor(metricValue / 60);
-                const mins = metricValue % 60;
+            // Oura stores sleep/activity durations in seconds
+            if (
+                widget.config.dataKey?.includes('sleep.total') ||
+                widget.config.dataKey?.includes('duration')
+            ) {
+                const totalSeconds = Math.round(Number(metricValue) || 0);
+                const hours = Math.floor(totalSeconds / 3600);
+                const mins = Math.floor((totalSeconds % 3600) / 60);
                 displayValue = `${hours}h ${mins}m`;
-                unit = ""; // Unit is built-in
+                unit = ''; // Unit is built-in
             }
 
             return (

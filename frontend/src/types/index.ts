@@ -1,3 +1,5 @@
+export type CompartmentId = 'recovery' | 'training' | 'health';
+
 export interface WidgetConfig {
     color?: string;
     showLegend?: boolean;

@@ -1,17 +1,17 @@
 {
-  "name": "cracked-oura",
+  "name": "usman-biotracker",
   "private": true,
   "version": "0.0.0",
-  "description": "Cracked Oura Dashboard",
-  "author": "Elmo Ahorinta",
+  "description": "Usman Biotracker — Recovery, Training, and Health",
+  "author": "Usman",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",
     "dev:react": "vite",
-    "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && echo '{\"type\":\"commonjs\"}' > dist-electron/package.json && NODE_ENV=development electron .",
-    "build:backend": "cd ../backend && ./venv/bin/python -m PyInstaller --noconfirm build.spec && cd ../frontend",
-    "build": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\" && npm run build:backend && tsc -b && vite build && tsc -p electron/tsconfig.json && echo '{\"type\":\"commonjs\"}' > dist-electron/package.json && electron-builder",
+    "dev:electron": "wait-on tcp:5173 && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', JSON.stringify({type:'commonjs'}))\" && cross-env NODE_ENV=development electron .",
+    "build:backend": "node ../scripts/build-backend.js",
+    "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npm run build:backend && tsc -b && vite build && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', JSON.stringify({type:'commonjs'}))\" && electron-builder --win",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -23,16 +23,38 @@
       }
     ],
     "files": [
-      "dist/**/*",
+      "dist-web/**/*",
       "dist-electron/**/*"
     ],
-    "appId": "com.elmoahorinta.crackedoura",
-    "productName": "Cracked Oura",
+    "appId": "com.usman.biotracker",
+    "productName": "Usman Biotracker",
     "mac": {
       "icon": "icon.png"
     },
     "win": {
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Usman Biotracker"
     },
     "linux": {
       "icon": "icon.png",
@@ -69,6 +91,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@electron/asar": "^4.2.0",
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.4",
     "@types/react": "^19.2.5",
@@ -77,6 +100,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
     "eslint": "^9.39.1",

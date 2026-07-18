@@ -1,0 +1,15 @@
+# Railway: New Project → Deploy from GitHub → set root to repo
+# Required variables:
+#   BIOTRACKER_CLOUD_TOKEN = long random secret
+#   BIOTRACKER_CLOUD=1
+#   BIOTRACKER_DATA_DIR=/data
+# Add a volume mounted at /data
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "cloud/Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/cloud/status"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"

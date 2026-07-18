@@ -6,41 +6,81 @@ import { X, Loader2, AlertCircle, Download, Copy, Upload } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { api, type AutomationStatusResponse } from '@/lib/api';
+import { CloudSyncSection } from '@/components/dashboard/CloudSyncSection';
 
 interface SettingsPanelProps {
     onClose: () => void;
+    compartment?: 'recovery' | 'training' | 'health';
 }
 
 type AutomationStatus = AutomationStatusResponse['status'];
 
-export function SettingsPanel({ onClose }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPanelProps) {
     const [status, setStatus] = useState<AutomationStatus>('idle');
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [logs, setLogs] = useState<string[]>([]);
-    const [activeTab, setActiveTab] = useState<'automation' | 'layout'>('automation');
+    const [activeTab, setActiveTab] = useState<'automation' | 'layout' | 'ai'>('automation');
 
     const [dailySyncTime, setDailySyncTime] = useState("09:00");
+    const [llmModel, setLlmModel] = useState("llama3.2:3b");
+    const [llmHost, setLlmHost] = useState("http://localhost:11434");
+
+    // Hevy
+    const [hevyEmail, setHevyEmail] = useState('');
+    const [hevyPassword, setHevyPassword] = useState('');
+    const [hevyInfo, setHevyInfo] = useState<any>(null);
+
+    // Health import / sheets
+    const [csvText, setCsvText] = useState('');
+    const [sheetsInfo, setSheetsInfo] = useState<any>(null);
+    const [sheetsSyncing, setSheetsSyncing] = useState(false);
 
     useEffect(() => {
-        // Fetch settings on mount
         api.getSettings()
             .then(data => {
                 if (data.daily_sync_time) setDailySyncTime(data.daily_sync_time);
                 if (data.email) setEmail(data.email);
+                if (data.llm_model) setLlmModel(data.llm_model);
+                if (data.llm_host) setLlmHost(data.llm_host);
             })
             .catch(err => console.error("Failed to fetch settings", err));
-    }, []);
+
+        if (compartment === 'training') {
+            api.hevyStatus().then(setHevyInfo).catch(console.error);
+        }
+        if (compartment === 'health') {
+            api.healthSheetsConfig().then(setSheetsInfo).catch(console.error);
+        }
+    }, [compartment]);
 
     const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
 
     const handleSaveSettings = async () => {
         setLoading(true);
         try {
-            await api.saveSettings({ daily_sync_time: dailySyncTime, email });
+            await api.saveSettings({ daily_sync_time: dailySyncTime, email, llm_model: llmModel, llm_host: llmHost });
             addLog(`Settings saved: Daily sync at ${dailySyncTime}`);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveAiSettings = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await api.saveSettings({
+                daily_sync_time: dailySyncTime,
+                email,
+                llm_model: llmModel,
+                llm_host: llmHost,
+            });
+            addLog(`AI model set to ${llmModel}`);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -178,6 +218,278 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
         }
     };
 
+    const handleHevyLogin = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await api.hevyLogin(hevyEmail, hevyPassword);
+            setHevyPassword('');
+            const info = await api.hevyStatus();
+            setHevyInfo(info);
+            addLog('Hevy login successful');
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleHevyBrowserLogin = async () => {
+        setLoading(true);
+        setError(null);
+        addLog('Opening Hevy login window — sign in with Google there...');
+        try {
+            const res = await api.hevyLoginBrowser();
+            addLog(`Browser login OK${res.username ? ` as ${res.username}` : ''}`);
+            setHevyInfo(await api.hevyStatus());
+            // Pull workouts into local DB once after login (like first Oura download)
+            try {
+                const syncRes = await api.hevySync();
+                addLog(`Imported ${syncRes.imported} workouts to local cache`);
+                window.dispatchEvent(new Event('hevy-data-synced'));
+            } catch (syncErr: any) {
+                addLog(`Login OK — sync later: ${syncErr.message}`);
+            }
+        } catch (err: any) {
+            setError(typeof err.message === 'string' ? err.message : String(err));
+            addLog(`Browser login error: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleHevySync = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.hevySync();
+            addLog(`Synced ${res.imported} workouts`);
+            setHevyInfo(await api.hevyStatus());
+            window.dispatchEvent(new Event('hevy-data-synced'));
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleHealthImport = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.healthImport({ csv_text: csvText, sheet: 'supplements' });
+            addLog(`Imported supplements: ${res.supplements}`);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (compartment === 'training') {
+        return (
+            <div className="w-[400px] border-l bg-card flex flex-col h-full">
+                <div className="p-6 border-b flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Training Settings</h2>
+                    <Button variant="ghost" size="icon" onClick={onClose}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+                <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                            Training uses the full <strong>Hevy Insights</strong> app
+                            (casudo/Hevy-Insights). Sign in with Google once; Sync workouts now saves
+                            them locally (like Oura Download Latest). Data stays after restart — Sync
+                            again only when you want fresh workouts from Hevy.
+                        </p>
+                        <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-lg text-sm">
+                            <span>
+                                {hevyInfo?.logged_in
+                                    ? `Logged in as ${hevyInfo.username || hevyInfo.email || 'user'}`
+                                    : hevyInfo?.has_local_data
+                                      ? `Local data ready (${hevyInfo.workout_count ?? 0} workouts) — sign in only to sync new ones`
+                                      : 'Not logged in'}
+                            </span>
+                        </div>
+                        {!hevyInfo?.logged_in && (
+                            <>
+                                <Button
+                                    className="w-full"
+                                    onClick={handleHevyBrowserLogin}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    ) : null}
+                                    Sign in with Google (browser)
+                                </Button>
+                                <p className="text-xs text-muted-foreground pt-2">
+                                    Or if you set a password in Hevy (Settings → Account → Security),
+                                    you can use email + password instead:
+                                </p>
+                                <Label>Hevy Email</Label>
+                                <Input
+                                    value={hevyEmail}
+                                    onChange={(e) => setHevyEmail(e.target.value)}
+                                    placeholder="you@email.com"
+                                />
+                                <Label>Password</Label>
+                                <Input
+                                    type="password"
+                                    value={hevyPassword}
+                                    onChange={(e) => setHevyPassword(e.target.value)}
+                                />
+                                <Button
+                                    variant="outline"
+                                    onClick={handleHevyLogin}
+                                    disabled={loading || !hevyEmail || !hevyPassword}
+                                >
+                                    Log in with email/password
+                                </Button>
+                            </>
+                        )}
+                        {hevyInfo?.logged_in && (
+                            <div className="flex flex-col gap-2">
+                                <Button onClick={handleHevySync} disabled={loading}>
+                                    {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+                                    Sync workouts now
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={async () => {
+                                        await api.hevyLogout();
+                                        setHevyInfo(await api.hevyStatus());
+                                    }}
+                                >
+                                    Log out
+                                </Button>
+                                {hevyInfo?.last_run && (
+                                    <p className="text-xs text-muted-foreground">Last sync: {hevyInfo.last_run}</p>
+                                )}
+                            </div>
+                        )}
+                        {!hevyInfo?.logged_in && hevyInfo?.has_local_data && hevyInfo?.last_run && (
+                            <p className="text-xs text-muted-foreground">Last sync: {hevyInfo.last_run}</p>
+                        )}
+                    </div>
+                    {logs.length > 0 && (
+                        <div className="text-xs font-mono bg-muted p-2 rounded max-h-40 overflow-auto">
+                            {logs.map((l, i) => (
+                                <div key={i}>{l}</div>
+                            ))}
+                        </div>
+                    )}
+                    <CloudSyncSection />
+                </div>
+            </div>
+        );
+    }
+
+    if (compartment === 'health') {
+        return (
+            <div className="w-[400px] border-l bg-card flex flex-col h-full">
+                <div className="p-6 border-b flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Health Settings</h2>
+                    <Button variant="ghost" size="icon" onClick={onClose}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+                <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Error</AlertTitle>
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-medium">Google Sheets (live)</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Your published sheets sync automatically every{' '}
+                            {sheetsInfo?.sync_minutes ?? 5} minutes. Edit the sheet in Google and
+                            it will show up here after the next sync.
+                        </p>
+                        {sheetsInfo?.last_sync && (
+                            <p className="text-xs text-muted-foreground">
+                                Last sync: {sheetsInfo.last_sync}
+                                {sheetsInfo.last_status ? ` · ${sheetsInfo.last_status}` : ''}
+                                {sheetsInfo.last_counts
+                                    ? ` · supp ${sheetsInfo.last_counts.supplements}, body ${sheetsInfo.last_counts.body}, labs ${sheetsInfo.last_counts.bloodwork}`
+                                    : ''}
+                            </p>
+                        )}
+                        <Button
+                            onClick={async () => {
+                                setSheetsSyncing(true);
+                                setError(null);
+                                try {
+                                    const r = await api.healthSheetsSync();
+                                    setSheetsInfo(await api.healthSheetsConfig());
+                                    window.dispatchEvent(new Event('health-data-synced'));
+                                    if (r.status === 'busy' || r.skipped) {
+                                        addLog('Sync already running — wait a moment.');
+                                    } else if (r.skipped_stale) {
+                                        addLog(
+                                            `Kept current data (Google returned a stale snapshot). notes=${r.notes_imported ?? 0}`
+                                        );
+                                    } else {
+                                        addLog(
+                                            `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), notes ${r.notes_imported ?? 0}`
+                                        );
+                                    }
+                                    if (r.errors?.length) {
+                                        setError(r.errors.join('; '));
+                                    }
+                                } catch (err: any) {
+                                    setError(err.message);
+                                } finally {
+                                    setSheetsSyncing(false);
+                                }
+                            }}
+                            disabled={sheetsSyncing || loading}
+                        >
+                            {(sheetsSyncing || loading) && (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            )}
+                            Sync from Google Sheets now
+                        </Button>
+                    </div>
+
+                    <div className="space-y-2 border-t pt-4">
+                        <Label>Manual CSV import (optional)</Label>
+                        <textarea
+                            className="w-full h-28 text-xs font-mono border rounded-md p-2 bg-background"
+                            value={csvText}
+                            onChange={(e) => setCsvText(e.target.value)}
+                            placeholder="Date,Day,Creatine,Omega3,..."
+                        />
+                        <Button onClick={handleHealthImport} disabled={loading || !csvText.trim()}>
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Import CSV
+                        </Button>
+                    </div>
+                    {logs.length > 0 && (
+                        <div className="text-xs font-mono bg-muted p-2 rounded max-h-40 overflow-auto">
+                            {logs.map((l, i) => (
+                                <div key={i}>{l}</div>
+                            ))}
+                        </div>
+                    )}
+                    <CloudSyncSection />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-[400px] border-l bg-card flex flex-col h-full">
             {/* Header */}
@@ -200,6 +512,17 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     onClick={() => setActiveTab('automation')}
                 >
                     Automation
+                </button>
+                <button
+                    className={cn(
+                        "flex-1 py-3 text-sm font-medium border-b-2 transition-colors",
+                        activeTab === 'ai'
+                            ? "border-primary text-primary"
+                            : "border-transparent text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setActiveTab('ai')}
+                >
+                    AI
                 </button>
                 <button
                     className={cn(
@@ -382,6 +705,47 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                     </>
                 )}
 
+                {activeTab === 'ai' && (
+                    <div className="space-y-6">
+                        <div className="space-y-2">
+                            <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Local LLM</h3>
+                            <p className="text-xs text-muted-foreground">
+                                Uses Ollama on this PC. Recommended on your machine (CPU inference): <span className="font-medium text-foreground">llama3.2:3b</span> — much faster than larger Qwen models when GPU offload isn’t available. Keep Ollama running while chatting.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Model</Label>
+                            <Input
+                                value={llmModel}
+                                onChange={e => setLlmModel(e.target.value)}
+                                placeholder="llama3.2:3b"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Must match a model from <code>ollama list</code>. Keep Ollama running while chatting.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Ollama Host</Label>
+                            <Input
+                                value={llmHost}
+                                onChange={e => setLlmHost(e.target.value)}
+                                placeholder="http://localhost:11434"
+                            />
+                        </div>
+                        <Button className="w-full" onClick={handleSaveAiSettings} disabled={loading || !llmModel}>
+                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Save AI Settings
+                        </Button>
+                        {error && (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Error</AlertTitle>
+                                <AlertDescription>{error}</AlertDescription>
+                            </Alert>
+                        )}
+                    </div>
+                )}
+
                 {activeTab === 'layout' && (
                     <div className="space-y-4">
                         <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Layout Actions</h3>
@@ -447,6 +811,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </div>
                     </div>
                 )}
+
+                <CloudSyncSection />
             </div>
         </div >
     );

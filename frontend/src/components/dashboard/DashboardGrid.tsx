@@ -5,7 +5,8 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { WidgetCard } from './WidgetCard';
 import { WidgetRegistry } from '../WidgetRegistry';
-import type { WidgetInstance } from '@/types';
+import { HealthWidgetRegistry } from '../HealthWidgetRegistry';
+import type { WidgetInstance, CompartmentId } from '@/types';
 import { cn, isIntradayKey } from '@/lib/utils';
 
 import { DateRangeSelector } from './DateRangeSelector';
@@ -26,6 +27,27 @@ interface DashboardGridProps {
 
     data?: any;
     selectedDate: Date;
+    compartment?: CompartmentId;
+}
+
+function renderWidget(
+    widget: WidgetInstance,
+    compartment: CompartmentId,
+    data: any,
+    selectedDate: Date,
+    onWidgetChange?: (widget: WidgetInstance) => void
+) {
+    if (compartment === 'health') {
+        return <HealthWidgetRegistry widget={widget} />;
+    }
+    return (
+        <WidgetRegistry
+            widget={widget}
+            data={data}
+            date={format(selectedDate, 'yyyy-MM-dd')}
+            onUpdate={(updates) => onWidgetChange?.({ ...widget, ...updates })}
+        />
+    );
 }
 
 export function DashboardGrid({
@@ -37,7 +59,8 @@ export function DashboardGrid({
     onWidgetChange,
     onDeleteWidget,
     data,
-    selectedDate
+    selectedDate,
+    compartment = 'recovery',
 }: DashboardGridProps) {
     // Fix for RGL mounting issue
     const [mounted, setMounted] = useState(false);
@@ -65,7 +88,10 @@ export function DashboardGrid({
                         if (!layoutItem) return null;
                         // This ensures the button is always visible for charts that support it, INCLUDING intraday ones (so user can pick "Selected Day")
                         const supportsDateRange = widget.type === 'trend' || widget.type === 'bar';
-                        const showDateSelector = (!!widget.config.dateRange || supportsDateRange) && widget.type !== 'table';
+                        const showDateSelector =
+                            compartment === 'recovery' &&
+                            (!!widget.config.dateRange || supportsDateRange) &&
+                            widget.type !== 'table';
 
                         return (
                             <div key={widget.id} className="relative group">
@@ -87,7 +113,7 @@ export function DashboardGrid({
                                 >
                                     <div className="h-full pt-2">
                                         <ErrorBoundary>
-                                            <WidgetRegistry widget={widget} data={data} date={format(selectedDate, 'yyyy-MM-dd')} />
+                                            {renderWidget(widget, compartment, data, selectedDate, onWidgetChange)}
                                         </ErrorBoundary>
                                     </div>
                                 </WidgetCard>
@@ -107,7 +133,10 @@ export function DashboardGrid({
                         if (!layoutItem) return null;
                         // This ensures the button is always visible for charts that support it, INCLUDING intraday ones (so user can pick "Selected Day")
                         const supportsDateRange = widget.type === 'trend' || widget.type === 'bar';
-                        const showDateSelector = (!!widget.config.dateRange || supportsDateRange) && widget.type !== 'table';
+                        const showDateSelector =
+                            compartment === 'recovery' &&
+                            (!!widget.config.dateRange || supportsDateRange) &&
+                            widget.type !== 'table';
 
                         return (
                             <div
@@ -136,7 +165,7 @@ export function DashboardGrid({
                                 >
                                     <div className="h-full pt-2">
                                         <ErrorBoundary>
-                                            <WidgetRegistry widget={widget} data={data} date={format(selectedDate, 'yyyy-MM-dd')} />
+                                            {renderWidget(widget, compartment, data, selectedDate, onWidgetChange)}
                                         </ErrorBoundary>
                                     </div>
                                 </WidgetCard>

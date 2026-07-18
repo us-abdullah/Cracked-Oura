@@ -94,11 +94,15 @@ class OuraAutomator:
             
             driver_executable, driver_cli = compute_driver_executable()
             env = get_driver_env()
+            # Ensure browsers install into the app data dir (not a temp/sandbox path)
+            os.makedirs(self.browser_dir, exist_ok=True)
+            env["PLAYWRIGHT_BROWSERS_PATH"] = self.browser_dir
             
             # Use the bundled Node.js to run the install command directly
             # This avoids recursive app launching
             
             logger.info(f"Using driver: {driver_executable} {driver_cli}")
+            logger.info(f"PLAYWRIGHT_BROWSERS_PATH={self.browser_dir}")
             
             process = await asyncio.create_subprocess_exec(
                 driver_executable, driver_cli, "install", "chromium",
@@ -107,10 +111,12 @@ class OuraAutomator:
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
+            out = (stdout or b"").decode(errors="replace")
+            err = (stderr or b"").decode(errors="replace")
             
             if process.returncode != 0:
-                logger.error(f"Browser install failed: {stderr.decode()}")
-                raise Exception(f"Failed to install browser: {stderr.decode()}")
+                logger.error(f"Browser install failed (code={process.returncode}): {err or out}")
+                raise Exception(f"Failed to install browser: {err or out or f'exit {process.returncode}'}")
             
             logger.info("Browser installed successfully.")
             
@@ -251,17 +257,30 @@ class OuraAutomator:
 
     async def _check_otp_screen(self):
         """Checks if OTP screen is active and handles the 'Send Code' intermediate step if present."""
-        # Check for "Send code" intermediate page
-        intermediate_btn = self.page.locator("button[name='selectedId']")
+        # Oura may show multiple auth options (passkey + email code). Prefer email OTP.
+        email_code_btn = self.page.get_by_role("button", name="Email me a code")
+        send_code_btn = self.page.get_by_role("button", name="Send code")
+        intermediate_btn = self.page.locator("button[name='selectedId']").filter(
+            has_text="Email me a code"
+        )
         otp_input_name = self.page.locator("input[name='otp']")
         otp_input_id = self.page.locator("#otp-code")
 
-        if await intermediate_btn.is_visible() and \
-           not await otp_input_name.is_visible() and \
-           not await otp_input_id.is_visible():
-            logger.info("Found intermediate 'Send Code' button. Clicking...")
-            await intermediate_btn.click()
-            await self.page.wait_for_timeout(3000)
+        otp_visible = await otp_input_name.is_visible() or await otp_input_id.is_visible()
+        if not otp_visible:
+            for btn, label in (
+                (email_code_btn, "Email me a code"),
+                (send_code_btn, "Send code"),
+                (intermediate_btn, "Email me a code (selectedId)"),
+            ):
+                try:
+                    if await btn.count() > 0 and await btn.first.is_visible():
+                        logger.info(f"Found intermediate '{label}' button. Clicking...")
+                        await btn.first.click()
+                        await self.page.wait_for_timeout(3000)
+                        break
+                except Exception as e:
+                    logger.warning(f"Could not click '{label}': {e}")
 
         # Check for OTP input visibility
         if await otp_input_name.is_visible() or await otp_input_id.is_visible():

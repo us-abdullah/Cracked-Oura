@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import json
 import traceback
+import asyncio
 from typing import List, Optional, Any
 from datetime import date, datetime
 
@@ -53,6 +54,10 @@ class OTPRequest(BaseModel):
 class SettingsRequest(BaseModel):
     daily_sync_time: str
     email: Optional[str] = None
+    llm_model: Optional[str] = None
+    llm_host: Optional[str] = None
+    llm_reasoning: Optional[bool] = None
+    llm_num_ctx: Optional[int] = None
 
 class Dashboard(BaseModel):
     id: str
@@ -132,16 +137,16 @@ async def run_full_sync_task(db_session_factory):
 async def chat(request: ChatRequest):
     """
     Interacts with the AI Advisor (LangChain SQL Agent).
+    Runs in a worker thread so Ollama/SQL work cannot freeze the whole API.
     """
     try:
-        logger.info(f"Incoming Chat Request.")
-        advisor = DataAnalyst()
-            
-        # Append latest user message to history references
+        logger.info("Incoming Chat Request.")
         full_history = request.history + [{"role": "user", "content": request.message}]
-        
-        response = advisor.chat(full_history)
-        return response
+
+        def _run_chat():
+            return DataAnalyst().chat(full_history)
+
+        return await asyncio.to_thread(_run_chat)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
@@ -231,6 +236,14 @@ async def save_settings(request: SettingsRequest):
         updates = {"schedule_time": request.daily_sync_time}
         if request.email is not None:
              updates["email"] = request.email
+        if request.llm_model is not None:
+             updates["llm_model"] = request.llm_model
+        if request.llm_host is not None:
+             updates["llm_host"] = request.llm_host
+        if request.llm_reasoning is not None:
+             updates["llm_reasoning"] = request.llm_reasoning
+        if request.llm_num_ctx is not None:
+             updates["llm_num_ctx"] = request.llm_num_ctx
              
         config_manager.update_config(**updates)
         return {"message": "Settings saved"}
@@ -244,7 +257,14 @@ async def get_settings():
         config = config_manager.get_config()
         return {
             "daily_sync_time": config.get("schedule_time", "09:00"),
-            "email": config.get("email", "")
+            "email": config.get("email", ""),
+            "llm_model": config.get("llm_model", "llama3.2:3b"),
+            "llm_host": config.get("llm_host", "http://localhost:11434"),
+            "llm_reasoning": config.get("llm_reasoning", False),
+            "llm_num_ctx": config.get("llm_num_ctx", 4096),
+            "cloud_remote_url": config.get("cloud_remote_url", ""),
+            "cloud_sync_token": config.get("cloud_sync_token", ""),
+            "cloud_last_push": config.get("cloud_last_push"),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -268,7 +288,23 @@ async def save_dashboard_config(request: DashboardConfigRequest):
     try:
         update_data = {}
         if request.dashboards is not None:
-            update_data["dashboards"] = [d.dict() for d in request.dashboards]
+            incoming = [d.dict() for d in request.dashboards]
+            incoming_widgets = sum(len(d.get("widgets") or []) for d in incoming)
+            existing = config_manager.get_config().get("dashboard", {})
+            existing_dashboards = existing.get("dashboards") or []
+            existing_widgets = sum(len(d.get("widgets") or []) for d in existing_dashboards)
+            # Don't let a failed frontend load wipe a good preset
+            if incoming_widgets == 0 and existing_widgets > 0:
+                logger.warning(
+                    "Rejected empty dashboard save (%s existing widgets).",
+                    existing_widgets,
+                )
+                return {
+                    "message": "Ignored empty dashboard save",
+                    "dashboards": existing_dashboards,
+                    "activeDashboardId": existing.get("activeDashboardId"),
+                }
+            update_data["dashboards"] = incoming
         if request.activeDashboardId is not None:
             update_data["activeDashboardId"] = request.activeDashboardId
         

@@ -31,7 +31,7 @@ function createTray() {
         icon = icon.resize({ width: 22, height: 22 });
     }
     tray = new electron_1.Tray(icon);
-    tray.setToolTip('Cracked Oura');
+    tray.setToolTip('Usman Biotracker');
     const contextMenu = electron_1.Menu.buildFromTemplate([
         {
             label: 'Open Dashboard',
@@ -72,10 +72,10 @@ function createWindow() {
         },
         backgroundColor: '#0f1115', // Match our dark theme
         show: false, // Don't show until ready
-        title: 'Cracked Oura',
+        title: 'Usman Biotracker',
     });
     const devUrl = 'http://localhost:5173';
-    const prodPath = path_1.default.join(__dirname, '../dist/index.html');
+    const prodPath = path_1.default.join(__dirname, '../dist-web/index.html');
     if (isDev) {
         logToDesktop(`Loading DEV URL: ${devUrl}`);
         mainWindow.loadURL(devUrl);
@@ -153,13 +153,17 @@ function startPythonBackend() {
     if (isDev) {
         logToDesktop("Running in DEV mode");
         // Run with uvicorn via python -m
-        pythonProcess = (0, child_process_1.spawn)(exePath, [
+        // On Windows, --reload forces SelectorEventLoop which breaks Playwright subprocesses.
+        const uvicornArgs = [
             '-m', 'uvicorn',
             'backend.src.api.main:app',
             '--host', '127.0.0.1',
             '--port', '8000',
-            '--reload'
-        ], {
+        ];
+        if (process.platform !== 'win32') {
+            uvicornArgs.push('--reload');
+        }
+        pythonProcess = (0, child_process_1.spawn)(exePath, uvicornArgs, {
             cwd: path_1.default.join(__dirname, '../../'),
             stdio: 'inherit'
         });
@@ -212,10 +216,30 @@ function startPythonBackend() {
         logToDesktop("pythonProcess is undefined after attempt!");
     }
 }
-electron_1.app.on('ready', () => {
+async function waitForBackend(timeoutMs = 45000) {
+    const started = Date.now();
+    logToDesktop('Waiting for backend on http://127.0.0.1:8000 ...');
+    while (Date.now() - started < timeoutMs) {
+        try {
+            const res = await fetch('http://127.0.0.1:8000/api/hevy/status');
+            if (res.ok) {
+                logToDesktop(`Backend ready after ${Date.now() - started}ms`);
+                return true;
+            }
+        }
+        catch {
+            // not up yet
+        }
+        await new Promise((r) => setTimeout(r, 400));
+    }
+    logToDesktop('Backend did not become ready before timeout');
+    return false;
+}
+electron_1.app.on('ready', async () => {
     startPythonBackend();
-    createWindow();
     createTray();
+    await waitForBackend();
+    createWindow();
 });
 electron_1.app.on('window-all-closed', () => {
     // Do NOT quit. We want to stay alive in the tray.

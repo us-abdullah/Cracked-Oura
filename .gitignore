@@ -22,3 +22,16 @@ oura-downloads/
 # IDE
 .vscode/
 .idea/
+
+# Phone companion
+companion-web/node_modules/
+companion-web/dist/
+
+
+frontend/dist-web/
+frontend/dist/win-unpacked/
+
+
+vendor/Hevy-Insights/frontend/node_modules/
+vendor/Hevy-Insights/frontend/dist/
+

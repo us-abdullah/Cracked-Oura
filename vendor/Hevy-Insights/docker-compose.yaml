@@ -1,0 +1,38 @@
+networks:
+  YOUR_EXISTING_NETWORK:
+    external: true
+
+services:
+  backend:
+    container_name: hevy_backend
+    image: ghcr.io/casudo/hevy-insights-backend:latest
+    restart: unless-stopped
+    # ports: # Optional external exposure
+    #  - 5000:5000
+    environment:
+      - X_API_KEY=klean_kanteen_insulated
+      - LOG_LEVEL=INFO
+      - RECAPTCHA_SITE_KEY=6LfkQG0jAAAAANTrIkVXKPfSPHyJnt4hYPWqxh0R
+      - COOKIE_SECURE=true # True for Production with HTTPS, false for local testing
+    hostname: hevy_backend
+    networks:
+      - YOUR_EXISTING_NETWORK
+    mem_limit: 1g
+    mem_reservation: 512m
+    memswap_limit: 1g
+    shm_size: 256m  # Shared memory for Chrome
+
+  frontend:
+    container_name: hevy_frontend
+    image: ghcr.io/casudo/hevy-insights-frontend:latest
+    restart: unless-stopped
+    ports:
+      - 8123:8080
+    depends_on:
+      - backend
+    hostname: hevy_frontend
+    networks:
+      - YOUR_EXISTING_NETWORK
+    mem_limit: 512m
+    mem_reservation: 256m
+    memswap_limit: 512m

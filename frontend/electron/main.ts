@@ -32,7 +32,7 @@ function createTray() {
     }
 
     tray = new Tray(icon);
-    tray.setToolTip('Cracked Oura');
+    tray.setToolTip('Usman Biotracker');
 
     const contextMenu = Menu.buildFromTemplate([
         {
@@ -76,11 +76,11 @@ function createWindow() {
         },
         backgroundColor: '#0f1115', // Match our dark theme
         show: false, // Don't show until ready
-        title: 'Cracked Oura',
+        title: 'Usman Biotracker',
     });
 
     const devUrl = 'http://localhost:5173';
-    const prodPath = path.join(__dirname, '../dist/index.html');
+    const prodPath = path.join(__dirname, '../dist-web/index.html');
 
     if (isDev) {
         logToDesktop(`Loading DEV URL: ${devUrl}`);
@@ -168,13 +168,17 @@ function startPythonBackend() {
     if (isDev) {
         logToDesktop("Running in DEV mode");
         // Run with uvicorn via python -m
-        pythonProcess = spawn(exePath, [
+        // On Windows, --reload forces SelectorEventLoop which breaks Playwright subprocesses.
+        const uvicornArgs = [
             '-m', 'uvicorn',
             'backend.src.api.main:app',
             '--host', '127.0.0.1',
             '--port', '8000',
-            '--reload'
-        ], {
+        ];
+        if (process.platform !== 'win32') {
+            uvicornArgs.push('--reload');
+        }
+        pythonProcess = spawn(exePath, uvicornArgs, {
             cwd: path.join(__dirname, '../../'),
             stdio: 'inherit'
         });
@@ -230,10 +234,30 @@ function startPythonBackend() {
     }
 }
 
-app.on('ready', () => {
+async function waitForBackend(timeoutMs = 45000): Promise<boolean> {
+    const started = Date.now();
+    logToDesktop('Waiting for backend on http://127.0.0.1:8000 ...');
+    while (Date.now() - started < timeoutMs) {
+        try {
+            const res = await fetch('http://127.0.0.1:8000/api/hevy/status');
+            if (res.ok) {
+                logToDesktop(`Backend ready after ${Date.now() - started}ms`);
+                return true;
+            }
+        } catch {
+            // not up yet
+        }
+        await new Promise((r) => setTimeout(r, 400));
+    }
+    logToDesktop('Backend did not become ready before timeout');
+    return false;
+}
+
+app.on('ready', async () => {
     startPythonBackend();
-    createWindow();
     createTray();
+    await waitForBackend();
+    createWindow();
 });
 
 app.on('window-all-closed', () => {

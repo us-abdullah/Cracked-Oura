@@ -1,58 +1,87 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Dashboard } from '../types';
+import type { Dashboard, CompartmentId } from '../types';
+import { api } from '@/lib/api';
 
-import { api } from "@/lib/api";
+const widgetCount = (dashboards: Dashboard[] | null | undefined) =>
+    (dashboards || []).reduce((n, d) => n + (d.widgets?.length || 0), 0);
 
-// ...
-
-export const useDashboardPersistence = () => {
+export const useDashboardPersistence = (compartment: CompartmentId = 'recovery') => {
     const [savedDashboards, setSavedDashboards] = useState<Dashboard[] | null>(null);
     const [savedActiveDashboardId, setSavedActiveDashboardId] = useState<string | null>(null);
 
-    // Load dashboards from server with retry logic
     useEffect(() => {
         let attempts = 0;
-        const maxAttempts = 10;
+        const maxAttempts = 15;
+        let cancelled = false;
 
         const loadConfig = () => {
-            api.getLayout()
-                .then(data => {
+            const loader =
+                compartment === 'recovery'
+                    ? api.getLayout()
+                    : api.getCompartmentLayout(compartment);
+
+            loader
+                .then((data) => {
+                    if (cancelled) return;
                     if (data.dashboards && Array.isArray(data.dashboards)) {
                         setSavedDashboards(data.dashboards);
-                        setSavedActiveDashboardId(data.activeDashboardId || data.dashboards[0]?.id);
+                        setSavedActiveDashboardId(
+                            data.activeDashboardId || data.dashboards[0]?.id
+                        );
                     } else if (data.widgets && data.layout) {
-                        // Migration
                         const defaultDashboard: Dashboard = {
                             id: 'default',
                             name: 'Daily Overview',
                             widgets: data.widgets,
-                            layout: data.layout
+                            layout: data.layout,
                         };
                         setSavedDashboards([defaultDashboard]);
                         setSavedActiveDashboardId('default');
                     }
                 })
                 .catch(() => {
+                    if (cancelled) return;
                     attempts++;
                     if (attempts < maxAttempts) {
-                        setTimeout(loadConfig, 1000); // Retry after 1s
+                        setTimeout(loadConfig, 1000);
                     } else {
-                        console.error("Gave up loading dashboard config after multiple attempts.");
+                        console.error(
+                            `Gave up loading ${compartment} dashboard config.`
+                        );
                     }
                 });
         };
 
+        setSavedDashboards(null);
+        setSavedActiveDashboardId(null);
         loadConfig();
-    }, []);
+        return () => {
+            cancelled = true;
+        };
+    }, [compartment]);
 
-    const saveDashboards = useCallback((dashboards: Dashboard[], activeDashboardId: string) => {
-        api.saveLayout({ dashboards, activeDashboardId })
-            .catch(err => console.error("Error saving dashboard config:", err));
+    const saveDashboards = useCallback(
+        (dashboards: Dashboard[], activeDashboardId: string) => {
+            if (widgetCount(dashboards) === 0 && widgetCount(savedDashboards) > 0) {
+                console.warn('Skipped saving empty dashboard over existing widgets.');
+                return;
+            }
 
-        // Optimistic update
-        setSavedDashboards(dashboards);
-        setSavedActiveDashboardId(activeDashboardId);
-    }, []);
+            const payload = { dashboards, activeDashboardId };
+            const saver =
+                compartment === 'recovery'
+                    ? api.saveLayout(payload)
+                    : api.saveCompartmentLayout(compartment, payload);
+
+            saver.catch((err) =>
+                console.error(`Error saving ${compartment} dashboard:`, err)
+            );
+
+            setSavedDashboards(dashboards);
+            setSavedActiveDashboardId(activeDashboardId);
+        },
+        [savedDashboards, compartment]
+    );
 
     return { savedDashboards, savedActiveDashboardId, saveDashboards };
 };

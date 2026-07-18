@@ -1,0 +1,535 @@
+{
+  "login": {
+    "welcome": "¡Bienvenido! Por favor, inicia sesión para continuar.",
+    "api": {
+      "modeButton": "Login API",
+      "usernameOrEmail": "Usuario o Email",
+      "password": "Contraseña",
+      "usernamePlaceholder": "Introduce tu usuario o email",
+      "passwordPlaceholder": "Introduce tu contraseña",
+      "loginButton": "Iniciar Sesión",
+      "loggingIn": "Iniciando sesión...",
+      "waitText": "El inicio de sesión está tardando más de lo habitual. Obteniendo token...",
+      "errors": {
+        "emptyFields": "Por favor, introduce usuario/email y contraseña",
+        "loginFailed": "Error al iniciar sesión. Inténtalo de nuevo.",
+        "invalidCredentials": "Credenciales inválidas. Inténtalo de nuevo."
+      }
+    },
+    "csv": {
+      "modeButton": "Subir CSV",
+      "description": "Antes de exportar tus datos de la app Hevy, asegúrate de que el idioma de la app sea inglés y la unidad de peso sea KG.",
+      "selectFile": "Seleccionar archivo CSV",
+      "dragDrop": "o arrastra y suelta aquí",
+      "browse": "Buscar archivos",
+      "uploadButton": "Subir y continuar",
+      "uploading": "Subiendo...",
+      "errors": {
+        "noFile": "Por favor, selecciona un archivo CSV",
+        "invalidFile": "Archivo inválido. Selecciona un CSV válido (máx 10MB)",
+        "emptyFile": "El archivo CSV está vacío o no contiene datos de entrenamiento",
+        "uploadFailed": "Error al subir el CSV. Revisa el formato del archivo."
+      }
+    },
+    "apikey": {
+      "linkText": "Introducir Hevy PRO API Key",
+      "description": "Introduce tu clave API de Hevy PRO. Puedes obtenerla en https://hevy.com/settings?developer",
+      "label": "API Key",
+      "placeholder": "Introduce tu clave API de Hevy PRO",
+      "loginButton": "Validar e Iniciar Sesión",
+      "validating": "Validando...",
+      "errors": {
+        "emptyKey": "Por favor, introduce tu API key",
+        "invalidKey": "API key inválida. Revisa e inténtalo de nuevo.",
+        "validationFailed": "Error al validar la API key. Inténtalo de nuevo."
+      }
+    },
+    "madeBy": "Creado por",
+    "tagline": "Sigue tu progreso fitness"
+  },
+  "nav": {
+    "brandTextFor": "para",
+    "dashboard": "Panel",
+    "workoutsCard": "Entrenamientos (Tarjeta)",
+    "workoutsList": "Entrenamientos (Lista)",
+    "exercises": "Ejercicios",
+    "bodyMeasurements": "Medidas Corporales",
+    "share": "Compartir",
+    "settings": "Ajustes",
+    "logout": "Cerrar sesión"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "subtitle": "Bienvenido de nuevo",
+    "sections": {
+      "plateausDetected": "Estancamiento detectado ({count})",
+      "recentPRs": "Récords Personales Recientes ({count})",
+      "trainingAnalysis": "Análisis de Entrenamiento",
+      "exerciseInsights": "Información de Ejercicios",
+      "calendarViews": "Vistas de Calendario",
+      "muscleDistribution": "Distribución Muscular"
+    },
+    "filters": {
+      "all": "Todo",
+      "oneYear": "1A",
+      "sixMonths": "6M",
+      "threeMonths": "3M",
+      "oneMonth": "1M",
+      "monthly": "Mes",
+      "weekly": "Sem"
+    },
+    "stats": {
+      "totalWorkouts": "Entrenamientos Totales",
+      "totalVolume": "Volumen Total",
+      "avgVolume": "Volumen Promedio",
+      "totalHoursTrained": "Horas Totales Entrenadas",
+      "avgWorkoutTime": "Tiempo Promedio",
+      "workoutStreak": "Racha (Semanas)",
+      "mostTrainedExercise": "Ejercicio más Entrenado",
+      "longestWorkout": "Entrenamiento más largo",
+      "sessions": "sesiones",
+      "perWorkout": "por entreno"
+    },
+    "prTypes": {
+      "best_weight": "Peso",
+      "best_max": "Máx",
+      "best_1rm": "1RM",
+      "best_volume": "Volumen",
+      "best_reps": "Repeticiones",
+      "distance": "Distancia",
+      "duration": "Duración"
+    },
+    "charts": {
+      "hoursTrained": "Horas Entrenadas",
+      "hoursTrainedDescription": "Duración del entreno a lo largo del tiempo",
+      "volumeProgression": "Progresión de Volumen",
+      "volumeProgressionDescription": "Peso total levantado por período",
+      "repsAndSets": "Reps y Series",
+      "repsAndSetsDescription": "Desglose del volumen de entreno",
+      "PRsOverTime": "PRs en el tiempo",
+      "PRsOverTimeDescription": "Récords personales logrados",
+      "workoutCalendar": "Calendario de Entrenos",
+      "workoutCalendarDescription": "Consistencia de entreno en los últimos 12 meses",
+      "weeklyRhythm": "Ritmo Semanal",
+      "weeklyRhythmDescription": "Frecuencia de entreno por día",
+      "muscleDistribution": "Distribución Muscular",
+      "muscleDistributionDescription": "Series por grupo muscular",
+      "muscleRegions": "Regiones Musculares",
+      "muscleRegionsDescription": "Desglose acumulado por período",
+      "calendarWeek": "Sem",
+      "notSupported": "Este gráfico no está disponible al usar la clave API de Hevy PRO. Esta función requiere inicio de sesión con nombre de usuario/contraseña (OAuth).",
+      "muscleFilters": {
+        "groups": "GRUPOS",
+        "muscles": "MÚSCULO"
+      }
+    }
+  },
+  "workouts": {
+    "card": {
+      "title": "Entrenamientos (Tarjeta)",
+      "subtitle": "Explora tus entrenos en diseño de tarjeta.",
+      "totalSets": "Series Totales",
+      "set": "Serie",
+      "reps": "Reps"
+    },
+    "list": {
+      "title": "Entrenamientos (Lista)",
+      "subtitle": "Explora tus entrenos en formato de lista detallada con calendario.",
+      "searchContains": "Contiene…",
+      "set": "Serie",
+      "reps": "Reps"
+    }
+  },
+  "exercises": {
+    "title": "Ejercicios",
+    "subtitle": "Análisis detallado y seguimiento de progreso para cada ejercicio.",
+    "searchFilter": "Buscar ejercicios por nombre...",
+    "personalRecords": "Récords Personales",
+    "neverTrained": "Nunca entrenado",
+    "filters": {
+      "30days": "30d",
+      "60days": "60d",
+      "90days": "90d",
+      "1year": "1a",
+      "allTime": "Todo"
+    },
+    "summary": {
+      "total": "Total",
+      "active": "Activo"
+    },
+    "lastTrained": {
+      "today": "Entrenado hoy",
+      "yesterday": "Entrenado ayer",
+      "daysAgo": "Entrenado hace {days} días",
+      "weeksAgo": "Entrenado hace {weeks} semana(s)",
+      "monthsAgo": "Entrenado hace {months} mes(es)"
+    },
+    "stats": {
+      "statsHeader": "Estadísticas",
+      "totalSessions": "Sesiones Totales"
+    },
+    "insights": {
+      "plateauBadge": "Estancado",
+      "gainingBadge": "Mejorando",
+      "losingBadge": "Bajando",
+      "insufficientBadge": "Nuevo",
+      "inactiveBadge": "Inactivo",
+      "maintainingBadge": "Manteniendo",
+      "plateau": "Tu serie principal se ha mantenido en {weight} para {repsMin}-{repsMax} reps. ¡Prueba a subir peso o reps para romper el estancamiento!",
+      "plateauCardio": "Tu rendimiento se ha estancado en {metric}. ¡Prueba a aumentar la distancia o el ritmo!",
+      "gaining": "¡Has aumentado {weightChange} o {repsChange} reps respecto a tus últimas {sessions} sesiones!",
+      "gainingCardio": "¡Gran progreso! ¡Has mejorado un {change}% en tus últimas {sessions} sesiones!",
+      "losing": "El rendimiento bajó en {weightChange} o {repsChange} reps en tus últimas {sessions} sesiones. Considera descansar o revisar la técnica.",
+      "losingCardio": "El rendimiento bajó un {change}% en tus últimas {sessions} sesiones. Considera descansar o revisar tu entrenamiento.",
+      "insufficient": "Datos insuficientes. Necesitas al menos {needed} sesiones, actualmente tienes {sessions}.",
+      "inactive": "Sin entrenar en {days} días. ¡Retoma el entreno para ver tu progreso!",
+      "maintaining": "Rendimiento estable. Estás manteniendo tu nivel de fuerza actual."
+    },
+    "graphs": {
+      "maxWeight": "Peso Máximo (Tiempo)",
+      "repVolume": "Volumen de Repeticiones (Tiempo)",
+      "totalReps": "Repeticiones Totales",
+      "avgVolume": "Volumen Promedio por Serie",
+      "weightVsReps": "Peso Máximo vs Reps",
+      "volumeSession": "Volumen (Sesión - todas las series)",
+      "labels": {
+        "maxWeight": "Peso Máximo",
+        "repVolume": "Volumen de Reps",
+        "totalReps": "Repeticiones Totales",
+        "avgVolume": "Volumen Prom./Serie"
+      },
+      "axis": {
+        "weightVsReps": {
+          "x": "Reps al Peso Máximo",
+          "y": "Peso Máximo"
+        },
+        "volumeSession": {
+          "x": "Fecha",
+          "y": "Volumen"
+        }
+      }
+    },
+    "warnings": {
+      "repVolumeTitle": "¡No disponible con el modo de inicio de sesión con clave API de Hevy PRO!",
+      "repVolumeMessage": "No se puede calcular el volumen de repeticiones para ejercicios con peso corporal sin datos de peso corporal. Esta función requiere inicio de sesión con nombre de usuario/contraseña (OAuth) ya que ese método utiliza los puntos finales de la API de medidas corporales.",
+      "noBodyweight": "No se ha establecido ningún peso corporal."
+    },
+    "equipment": {
+      "title": "Gestionar Equipos/Fabricantes",
+      "info": "Crea variantes de equipos para ejercicios realizados en diferentes máquinas/fabricantes. Añade palabras clave para buscar en las notas de ejercicios en Hevy.",
+      "exerciseTitle": "Nombre del Ejercicio",
+      "selectExercise": "Selecciona un ejercicio entrenado",
+      "exerciseTitleHint": "Obligatorio: elige uno de tus ejercicios ya entrenados",
+      "exerciseTitlePlaceholder": "ej., Jalón al Pecho",
+      "equipmentName": "Nombre de Equipo/Fabricante",
+      "equipmentNamePlaceholder": "ej., Technogym, Life Fitness",
+      "searchKeyword": "Palabra Clave de Búsqueda",
+      "searchKeywordPlaceholder": "Palabra clave para buscar en notas de ejercicios",
+      "searchKeywordHint": "Esta palabra clave se buscará en las notas/descripciones de ejercicios para filtrar entrenamientos",
+      "imageUrl": "URL de Imagen (Opcional)",
+      "imageUrlPlaceholder": "https://...",
+      "add": "Añadir Equipo",
+      "update": "Actualizar",
+      "cancel": "Cancelar",
+      "configured": "Equipos Configurados",
+      "noEquipment": "No hay equipos configurados aún",
+      "keyword": "Palabra clave",
+      "confirmDelete": "¿Estás seguro de que quieres eliminar esta configuración de equipo?",
+      "fillRequired": "Por favor, completa todos los campos requeridos",
+      "noTrainedExercises": "Aún no hay ejercicios entrenados disponibles",
+      "filter": "Equipo/Fabricante",
+      "allEquipment": "Todos los Equipos",
+      "edit": "Editar",
+      "delete": "Eliminar"
+    }
+  },
+  "share": {
+    "title": "Comparte tu Progreso",
+    "subtitle": "Crea tarjetas hermosas para compartir tus logros en redes sociales",
+    "downloadBtn": "Descargar Tarjeta",
+    "downloaded": "¡Imagen descargada exitosamente!",
+    "generating": "Generando...",
+    "generateFailed": "Error al generar la imagen. Inténtalo de nuevo.",
+    "sections": {
+      "cardGallery": "Elige tu Estilo de Tarjeta",
+      "preview": "Vista Previa y Compartir"
+    },
+    "cards": {
+      "workoutStreak": "Racha de Entrenamientos",
+      "totalVolume": "Volumen Total",
+      "personalRecords": "Récords Personales",
+      "hoursTrained": "Horas Entrenadas",
+      "topExercise": "Ejercicio Principal",
+      "yearWrapped": "Resumen del Año"
+    },
+    "cardLabels": {
+      "streak": "Racha",
+      "totalVolume": "Volumen Total",
+      "sessions": "sesiones",
+      "trained": "entrenado",
+      "personalRecords": "Récords Personales",
+      "prsAchieved": "PRs Logrados",
+      "workouts": "entrenamientos",
+      "timeInvested": "Tiempo Invertido",
+      "hoursTrained": "Horas Entrenadas",
+      "favoriteExercise": "Ejercicio Favorito",
+      "timesTrained": "veces entrenado",
+      "totalWorkouts": "entrenamientos totales",
+      "wrappedTitle": "{year} resumen",
+      "wrappedSubtitle": "Tu año en revisión",
+      "weekStreak": "Racha de Semanas",
+      "selectYear": "Seleccionar Año"
+    },
+    "cardMottos": {
+      "workoutStreak": "¡Sigue así!",
+      "workoutStreakFooter": "La consistencia es la clave de la grandeza • Sigue tu camino",
+      "strengthInNumbers": "¡Fuerza en números!",
+      "strengthInNumbersFooter": "Cada repetición cuenta • Construyendo fuerza entreno a entreno",
+      "breakingBarriers": "¡Rompiendo barreras!",
+      "breakingBarriersFooter": "Superando límites • Estableciendo nuevos estándares • Nunca conformarse",
+      "timeWellInvested": "¡Tiempo bien invertido!",
+      "timeWellInvestedFooter": "Tiempo dedicado a la superación personal • Progreso sobre perfección",
+      "favoriteMove": "¡Tu movimiento favorito!",
+      "favoriteMoveFooter": "Dominando tu técnica • El enfoque y la dedicación dan frutos",
+      "yearInReview": "¡Tu año en revisión!",
+      "yearInReviewFooter": "Un año de crecimiento y transformación • Por el siguiente capítulo"
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Personaliza tu experiencia en Hevy Insights.",
+    "themes": {
+      "title": "Tema de Color",
+      "description": "Elige tu combinación de colores preferida para gráficos y detalles",
+      "green": "Esmeralda/Cian",
+      "purple": "Morado/Rosa",
+      "blue": "Azul/Índigo",
+      "orange": "Naranja/Rojo"
+    },
+    "language": {
+      "title": "Idioma",
+      "description": "Selecciona tu idioma preferido"
+    },
+    "dateTimeFormat": {
+      "title": "Formatos de Fecha y Hora",
+      "description": "Personaliza cómo se muestran las fechas y horas",
+      "dateFormat": "Formato de Fecha",
+      "graphAxisFormat": "Formato de Eje en Gráficos"
+    },
+    "weightUnit": {
+      "title": "Unidad de Peso",
+      "description": "Elige tu unidad de peso preferida",
+      "kg": "Kilogramo",
+      "lbs": "Libra"
+    },
+    "plateauDetection": {
+      "title": "Detección de Estancamiento",
+      "description": "Personaliza cuántos de tus últimos entrenos se usarán para detectar estancamientos",
+      "sessionsLabel": "Número de sesiones a analizar:",
+      "hint": "Analiza las últimas N sesiones (mínimo 3, máximo 100). Por defecto es 5."
+    },
+    "updateCheck": {
+      "title": "Notificaciones de actualización",
+      "description": "Recibe notificaciones cuando haya nuevas versiones disponibles",
+      "enableLabel": "Habilitar notificaciones de actualización",
+      "hint": "Buscar automáticamente nuevas versiones en GitHub. Puedes desactivar esto si prefieres verificar manualmente."
+    },
+    "dataManagement": {
+      "title": "Gestión de Datos",
+      "description": "Ver información sobre tu origen de datos",
+      "dataSource": "Origen de Datos",
+      "csvNote": "Estás usando el modo CSV. Los datos se guardan localmente, sin API."
+    },
+    "resetButton": "Restablecer valores",
+    "saveButton": "Guardar y volver al Panel"
+  },
+  "global": {
+    "loadingSpinnerText": "Cargando...",
+    "sw": {
+      "volume": "Volumen",
+      "hours": "Horas",
+      "duration": "Duración",
+      "distance": "Distancia",
+      "exercises": "Ejercicios",
+      "weight": "Peso",
+      "notes": "Notas",
+      "description": "Descripción",
+      "day": "Día",
+      "days": "días",
+      "weeks": "semanas",
+      "months": "meses",
+      "years": "años",
+      "reps": "repeticiones",
+      "height": "Altura",
+      "reset": "Restablecer",
+      "stable": "Estable",
+      "entry": "Entrada",
+      "retry": "Reintentar",
+      "since": "Desde",
+      "date": "Fecha",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "prs": "RPs"
+    },
+    "days": {
+      "mondayLong": "Lunes",
+      "tuesdayLong": "Martes",
+      "wednesdayLong": "Miércoles",
+      "thursdayLong": "Jueves",
+      "fridayLong": "Viernes",
+      "saturdayLong": "Sábado",
+      "sundayLong": "Domingo",
+      "mondayShort": "Lun",
+      "tuesdayShort": "Mar",
+      "wednesdayShort": "Mié",
+      "thursdayShort": "Jue",
+      "fridayShort": "Vie",
+      "saturdayShort": "Sáb",
+      "sundayShort": "Dom"
+    },
+    "months": {
+      "januaryLong": "Enero",
+      "februaryLong": "Febrero",
+      "marchLong": "Marzo",
+      "aprilLong": "Abril",
+      "mayLong": "Mayo",
+      "juneLong": "Junio",
+      "julyLong": "Julio",
+      "augustLong": "Agosto",
+      "septemberLong": "Septiembre",
+      "octoberLong": "Octubre",
+      "novemberLong": "Noviembre",
+      "decemberLong": "Diciembre",
+      "januaryShort": "Ene",
+      "februaryShort": "Feb",
+      "marchShort": "Mar",
+      "aprilShort": "Abr",
+      "mayShort": "May",
+      "juneShort": "Jun",
+      "julyShort": "Jul",
+      "augustShort": "Ago",
+      "septemberShort": "Sep",
+      "octoberShort": "Oct",
+      "novemberShort": "Nov",
+      "decemberShort": "Dic"
+    },
+    "bodymuscles": {
+      "chest": "Pecho",
+      "back": "Espalda",
+      "shoulders": "Hombros",
+      "arms": "Brazos",
+      "core": "Núcleo",
+      "legs": "Piernas",
+      "abdominals": "Abdominales",
+      "abductors": "Abductores",
+      "adductors": "Aductores",
+      "biceps": "Bíceps",
+      "calves": "Gemelos",
+      "glutes": "Glúteos",
+      "hamstrings": "Isquios",
+      "lats": "Dorsales",
+      "lower_back": "Lumbar",
+      "quadriceps": "Cuádriceps",
+      "triceps": "Tríceps",
+      "upper_back": "Espalda Superior"
+    },
+    "pagination": {
+      "first": "Primero",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "last": "Último",
+      "indicator": "Página {current} de {total}"
+    },
+    "searchFilter": {
+      "byNumber": "Por número",
+      "byName": "Nombre"
+    },
+    "timeRangeFilter": {
+      "timeRange": "Rango de tiempo",
+      "allTime": "Todo",
+      "lastWeek": "Última semana",
+      "lastMonth": "Último mes",
+      "last3Months": "Últimos 3 meses",
+      "last6Months": "Últimos 6 meses",
+      "last12Months": "Últimos 12 meses"
+    },
+    "footer": {
+      "contact": "Contacto",
+      "donate": "Invítame a un café",
+      "github": "Estrella en GitHub",
+      "bugReport": "Reportar un error",
+      "madeBy": "Hecho con ❤️ por {author}"
+    },
+    "update": {
+      "title": "¡Actualización disponible!",
+      "message": "La versión {version} ya está disponible.",
+      "viewRelease": "Ver lanzamiento"
+    }
+  },
+  "bodyMeasurements": {
+    "title": "Medidas Corporales",
+    "subtitle": "Seguimiento de peso y composición corporal a lo largo del tiempo",
+    "addMeasurement": "Agregar Medida",
+    "bmiCategory": {
+      "underweightSevere": "Bajo peso (Severo)",
+      "underweightModerate": "Bajo peso (Moderado)",
+      "underweightMild": "Bajo peso (Leve)",
+      "normal": "Normal",
+      "overweight": "Sobrepeso",
+      "obesityClassI": "Obeso (Clase I)",
+      "obesityClassII": "Obeso (Clase II)",
+      "obesityClassIII": "Obeso (Clase III)"
+    },
+    "ffmiCategory": {
+      "belowAverage": "Por debajo del promedio",
+      "average": "Promedio",
+      "aboveAverage": "Por encima del promedio",
+      "excellent": "Excelente",
+      "superior": "Superior"
+    },
+    "proApiWarning": {
+      "title": "Funcionalidad no disponible con el modo de inicio de sesión con clave API de Hevy PRO.",
+      "message": "Para rastrear las medidas corporales, debes iniciar sesión con el método de nombre de usuario/contraseña de Hevy, ya que ese método utiliza los puntos finales de la API de medidas corporales."
+    },    
+    "currentWeight": "Peso Actual",
+    "bmi": "IMC",
+    "bfp": "Porcentaje de Grasa Corporal",
+    "ffmi": "IMML",
+    "totalEntries": "Entradas Totales",
+    "weightChange": "Cambio de Peso",
+    "weightProgress": "Progreso de Peso",
+    "measurementHistory": "Historial de Medidas",
+    "noMeasurements": "Aún no hay medidas. ¡Comienza a seguir tu progreso!",
+    "addFirst": "Agrega tu primera medida",
+    "change": "Cambio (a la última entrada)",
+    "enterWeight": "Ingresa el peso",
+    "enterBodyFat": "Ingresa el porcentaje de grasa corporal",
+    "bodyFatNote": "Opcional. Requerido para el cálculo del IMML. Puede medirse con básculas de composición corporal o calibradores.",
+    "enterHeight": "Ingresa la altura",
+    "heightNote": "La altura se utiliza para calcular el IMC e IMML. Esto se guardará para uso futuro."
+  },
+  "profile": {
+    "title": "Perfil",
+    "subtitle": "Gestiona tu información personal y preferencias",
+    "loading": "Cargando perfil...",
+    "userInfo": {
+      "title": "Información del Usuario",
+      "username": "Nombre de Usuario",
+      "email": "Correo Electrónico",
+      "birthday": "Cumpleaños",
+      "bio": "Biografía"
+    },
+    "heightSettings": {
+      "title": "Configuración de Altura",
+      "description": "Establece tu altura para calcular el IMC e IMML. Esta configuración se utiliza en todas tus medidas corporales.",
+      "save": "Guardar Altura",
+      "saving": "Guardando...",
+      "heightNote": "Tu altura se guardará y se usará para los cálculos de IMC e IMML en medidas corporales.",
+      "heightSaved": "¡Altura guardada exitosamente!",
+      "currentHeight": "Altura Actual",
+      "noHeightSet": "Aún no se ha establecido ninguna altura. Ingresa tu altura arriba para comenzar.",
+      "warningTooHigh": "Este valor de altura parece inusualmente alto (>250cm). Por favor verifica tu entrada.",
+      "warningTooLow": "Este valor de altura parece bajo (<150cm). Por favor verifica tu entrada."
+    }
+  }
+}

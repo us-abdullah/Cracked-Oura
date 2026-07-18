@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { X } from "lucide-react";
 import { cn, isIntradayKey } from "@/lib/utils";
 import { DataFieldSelector } from "./DataFieldSelector";
-import type { WidgetInstance } from "@/types";
+import type { WidgetInstance, CompartmentId } from "@/types";
 
 
 interface WidgetEditorPanelProps {
@@ -15,11 +15,12 @@ interface WidgetEditorPanelProps {
     onSave: (widget: Partial<WidgetInstance>) => void;
     onChange?: (widget: WidgetInstance) => void;
     widget?: WidgetInstance; // If provided, we are editing
+    compartment?: CompartmentId;
 }
 
-export function WidgetEditorPanel({ onClose, onSave, onChange, widget }: WidgetEditorPanelProps) {
+export function WidgetEditorPanel({ onClose, onSave, onChange, widget, compartment = 'recovery' }: WidgetEditorPanelProps) {
     const [title, setTitle] = useState("");
-    const [type, setType] = useState<"score" | "trend" | "metric" | "bar" | "radar" | "json" | "table">("score");
+    const [type, setType] = useState<string>("score");
     const [dataKey, setDataKey] = useState("");
     const [dataKeys, setDataKeys] = useState<string[]>([]);
     const [color, setColor] = useState("#8AB4F8");
@@ -137,34 +138,62 @@ export function WidgetEditorPanel({ onClose, onSave, onChange, widget }: WidgetE
                     <Label htmlFor="type">Widget Type</Label>
                     <Select
                         value={type}
-                        onValueChange={(v: "score" | "trend" | "metric" | "bar" | "radar" | "json" | "table") => {
+                        onValueChange={(v: string) => {
                             setType(v);
-                            // Find the first valid data source for this new type
-                            const validOptions = DATA_OPTIONS.filter(opt => opt.types.includes(v));
-                            let newDataKey = dataKey;
-                            if (validOptions.length > 0) {
-                                newDataKey = validOptions[0].value;
-                                setDataKey(newDataKey);
-                                setDataKeys([newDataKey]);
+                            if (compartment === 'recovery') {
+                                const validOptions = DATA_OPTIONS.filter(opt => opt.types.includes(v as any));
+                                let newDataKey = dataKey;
+                                if (validOptions.length > 0) {
+                                    newDataKey = validOptions[0].value;
+                                    setDataKey(newDataKey);
+                                    setDataKeys([newDataKey]);
+                                }
+                                updateWidget({
+                                    type: v as any,
+                                    config: { ...widget?.config, dataKey: newDataKey, dataKeys: [newDataKey], color }
+                                });
+                            } else {
+                                updateWidget({
+                                    type: v as any,
+                                    config: { ...widget?.config, color }
+                                });
                             }
-
-                            updateWidget({
-                                type: v,
-                                config: { ...widget?.config, dataKey: newDataKey, dataKeys: [newDataKey], color }
-                            });
                         }}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="score">Score Gauge</SelectItem>
-                            <SelectItem value="trend">Trend Chart</SelectItem>
-                            <SelectItem value="metric">Metric Number</SelectItem>
-                            <SelectItem value="bar">Bar Chart</SelectItem>
-                            <SelectItem value="radar">Radar Chart</SelectItem>
-                            <SelectItem value="table">Table</SelectItem>
-                            <SelectItem value="json">JSON Viewer</SelectItem>
+                            {compartment === 'training' && (
+                                <>
+                                    <SelectItem value="hevy_heatmap">Workout Heatmap</SelectItem>
+                                    <SelectItem value="hevy_volume_muscle">Volume by Muscle</SelectItem>
+                                    <SelectItem value="hevy_overload">Progressive Overload</SelectItem>
+                                    <SelectItem value="hevy_prs">Personal Records</SelectItem>
+                                    <SelectItem value="hevy_duration">Session Duration</SelectItem>
+                                    <SelectItem value="hevy_weekly_volume">Weekly Volume</SelectItem>
+                                </>
+                            )}
+                            {compartment === 'health' && (
+                                <>
+                                    <SelectItem value="health_adherence_calendar">Adherence Calendar</SelectItem>
+                                    <SelectItem value="health_adherence_rates">Per-Supplement Rates</SelectItem>
+                                    <SelectItem value="health_notes">Notes Feed</SelectItem>
+                                    <SelectItem value="health_body">Weight & Body</SelectItem>
+                                    <SelectItem value="health_bloodwork">Bloodwork</SelectItem>
+                                </>
+                            )}
+                            {compartment === 'recovery' && (
+                                <>
+                                    <SelectItem value="score">Score Gauge</SelectItem>
+                                    <SelectItem value="trend">Trend Chart</SelectItem>
+                                    <SelectItem value="metric">Metric Number</SelectItem>
+                                    <SelectItem value="bar">Bar Chart</SelectItem>
+                                    <SelectItem value="radar">Radar Chart</SelectItem>
+                                    <SelectItem value="table">Table</SelectItem>
+                                    <SelectItem value="json">JSON Viewer</SelectItem>
+                                </>
+                            )}
                         </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
@@ -172,6 +201,7 @@ export function WidgetEditorPanel({ onClose, onSave, onChange, widget }: WidgetE
                     </p>
                 </div>
 
+                {compartment === 'recovery' && (
                 <div className="space-y-2">
                     <Label>Data Source</Label>
                     <div className="space-y-2">
@@ -281,6 +311,7 @@ export function WidgetEditorPanel({ onClose, onSave, onChange, widget }: WidgetE
                         />
                     </div>
                 </div>
+                )}
 
                 <div className="space-y-2">
                     <Label>Accent Color</Label>

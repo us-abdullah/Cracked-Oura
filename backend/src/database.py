@@ -36,35 +36,62 @@ except Exception as e:
 
 # --- SQLAlchemy Setup ---
 
-# Create the SQLAlchemy engine
-# echo=False disables raw SQL logging to keep console output clean
-engine = create_engine(DATABASE_URL, echo=False)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+)
 
-# Session factory for creating new database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# --- Utilities ---
+
+def rebind_engine():
+    """Reload SQLite engine after an on-disk DB replace (cloud mirror push)."""
+    global engine, SessionLocal, BASE_DIR, DB_PATH, DATABASE_URL
+    BASE_DIR = get_user_data_dir()
+    DB_PATH = os.path.join(BASE_DIR, "oura_database.db")
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+    try:
+        engine.dispose()
+    except Exception:
+        pass
+    engine = create_engine(
+        DATABASE_URL,
+        echo=False,
+        connect_args={"check_same_thread": False},
+    )
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    logger.info(f"Database engine rebound to {DB_PATH}")
+
 
 def init_db():
     """
     Initializes the database schema.
-    Creates all tables defined in `models.py` if they do not already exist.
+    Creates all tables defined in models if they do not already exist.
     """
     try:
+        from . import models_hevy  # noqa: F401
+        from . import models_health  # noqa: F401
         Base.metadata.create_all(bind=engine)
         logger.info(f"Database initialized at {DB_PATH}")
+
+        try:
+            from .health.service import seed_placeholder_supplements
+            db = SessionLocal()
+            try:
+                n = seed_placeholder_supplements(db)
+                if n:
+                    logger.info(f"Seeded {n} health supplement placeholder rows")
+            finally:
+                db.close()
+        except Exception as se:
+            logger.warning(f"Health seed skipped: {se}")
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         raise e
 
+
 def get_db():
-    """
-    FastAPI Dependency for database sessions.
-    Ensures that a session is created for each request and closed afterwards.
-    
-    Yields:
-        Session: The SQLAlchemy database session.
-    """
     db = SessionLocal()
     try:
         yield db

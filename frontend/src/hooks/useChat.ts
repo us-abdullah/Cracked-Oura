@@ -46,9 +46,10 @@ export function useChat() {
                 thoughts: data.thoughts
             };
             setMessages(prev => [...prev, assistantMessage]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Chat error:", error);
-            setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I encountered an error processing your request." }]);
+            const msg = error?.message || "Sorry, I encountered an error processing your request.";
+            setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
         } finally {
             setIsLoading(false);
         }
