@@ -262,9 +262,6 @@ async def get_settings():
             "llm_host": config.get("llm_host", "http://localhost:11434"),
             "llm_reasoning": config.get("llm_reasoning", False),
             "llm_num_ctx": config.get("llm_num_ctx", 4096),
-            "cloud_remote_url": config.get("cloud_remote_url", ""),
-            "cloud_sync_token": config.get("cloud_sync_token", ""),
-            "cloud_last_push": config.get("cloud_last_push"),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -170,10 +170,23 @@ def get_user_account(
 ):
     cfg = config_manager.get_config()
     access, refresh = _tokens_from_config_or_cookies(hevy_access_token, hevy_refresh_token)
-    if not access and not refresh:
+
+    def local_fallback() -> Optional[dict]:
         cached = _cached_account(cfg)
         if cached:
             return cached
+        # Local-cache mode: never 401 the Insights SPA if workouts exist offline
+        if _local_workout_count() > 0:
+            return {
+                "username": cfg.get("hevy_username") or "local",
+                "email": cfg.get("hevy_email") or "",
+            }
+        return None
+
+    if not access and not refresh:
+        fb = local_fallback()
+        if fb:
+            return fb
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         client = _client(hevy_access_token, hevy_refresh_token)
@@ -185,12 +198,17 @@ def get_user_account(
             )
         return account
     except HevyError as e:
-        cached = _cached_account(cfg)
-        if cached:
-            return cached
+        fb = local_fallback()
+        if fb:
+            return fb
         raise HTTPException(
             status_code=401 if "Unauthorized" in str(e) else 500, detail=str(e)
         )
+    except Exception:
+        fb = local_fallback()
+        if fb:
+            return fb
+        raise
 
 
 @router.get("/workouts")

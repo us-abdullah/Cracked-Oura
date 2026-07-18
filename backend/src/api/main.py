@@ -4,7 +4,6 @@ from backend.src.api.routes import router
 from backend.src.api.routes_hevy import router as hevy_router
 from backend.src.api.routes_health import router as health_router
 from backend.src.api.routes_hevy_insights import router as hevy_insights_router
-from backend.src.api.routes_cloud import router as cloud_router
 from backend.src.database import init_db, SessionLocal
 
 import asyncio
@@ -102,19 +101,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configure CORS — Electron (null), local Vite, Vercel companion, Cloudflare tunnels
+# Configure CORS
+origins = [
+    "http://localhost",
+    "http://localhost:3000", # Frontend
+    "http://localhost:8000", # Backend
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "null",
-        "http://localhost:5173",
-        "http://localhost:5175",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5175",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],
-    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.trycloudflare\.com|https://.*\.up\.railway\.app|https://.*\.onrender\.com|https://.*\.fly\.dev|http://localhost:\d+|http://127\.0\.0\.1:\d+",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -125,7 +121,6 @@ app.include_router(router)
 app.include_router(hevy_router)
 app.include_router(health_router)
 app.include_router(hevy_insights_router)
-app.include_router(cloud_router)
 
 # --- API Models for Automation ---
 class AutomationConfig(BaseModel):
@@ -550,31 +545,27 @@ else:
 if __name__ == "__main__":
     import uvicorn
     import sys
-
-    port = int(os.getenv("PORT", "8000"))
-    host = "0.0.0.0" if os.getenv("BIOTRACKER_CLOUD") else "127.0.0.1"
-
+    
     # Check if running as a PyInstaller bundle
-    if getattr(sys, "frozen", False):
+    if getattr(sys, 'frozen', False):
         try:
-            uvicorn.run(app, host=host if os.getenv("BIOTRACKER_CLOUD") else "127.0.0.1", port=port, reload=False)
+            # Production (Frozen)
+            uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)
         except Exception as e:
+            # Emergency logging if startup fails
             from backend.src.paths import get_user_data_dir
+            import os
             import traceback
-
+            
             try:
                 log_path = os.path.join(get_user_data_dir(), "startup_crash.log")
                 with open(log_path, "w", encoding="utf-8") as f:
                     f.write(f"Startup Crash: {e}\n")
                     f.write(traceback.format_exc())
-            except Exception:
-                pass
+            except:
+                pass # Failed to write log
             raise e
     else:
-        uvicorn.run(
-            "backend.src.api.main:app",
-            host=host,
-            port=port,
-            reload=not bool(os.getenv("BIOTRACKER_CLOUD")),
-            reload_dirs=["backend"] if not os.getenv("BIOTRACKER_CLOUD") else None,
-        )
+        # Development
+        # Run the server with auto-reload
+        uvicorn.run("backend.src.api.main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["backend"])

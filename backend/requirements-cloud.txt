@@ -1,9 +1,0 @@
-# Slim cloud image — no Playwright / local LLM stack required for mirror hosting
-fastapi
-uvicorn[standard]
-sqlalchemy
-python-multipart
-httpx
-requests
-pydantic>=2.0.0
-pandas

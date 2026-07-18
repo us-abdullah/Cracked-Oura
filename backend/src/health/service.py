@@ -25,10 +25,11 @@ def _parse_bool(v: Any) -> Optional[bool]:
         return None
     if isinstance(v, bool):
         return v
-    s = str(v).strip().upper()
-    if s in ("TRUE", "1", "YES", "Y", "CHECKED", "X"):
+    s = str(v).strip()
+    su = s.upper()
+    if su in ("TRUE", "1", "YES", "Y", "CHECKED", "X") or s in ("✓", "✔", "☑", "✅"):
         return True
-    if s in ("FALSE", "0", "NO", "N", "UNCHECKED"):
+    if su in ("FALSE", "0", "NO", "N", "UNCHECKED") or s in ("☐", "✗", "✘", "❌"):
         return False
     return None
 

@@ -117,11 +117,12 @@ def _supplement_score(text: str) -> Tuple[int, int, int]:
     return (notes, falses, len(rows))
 
 
-def _fetch_stable(url: str, attempts: int = 5, delay_s: float = 0.25) -> str:
+def _fetch_stable(url: str, attempts: int = 7, delay_s: float = 0.4) -> str:
     """
     Google published sheets return inconsistent CDN snapshots.
-    Pick a consensus size (so deletions can win over stale fuller copies),
-    then the richest notes/FALSE content within that size.
+    Prefer the newest sheet (most rows) so newly added days win.
+    Within a chosen size, prefer richest Notes + FALSE checkboxes so
+    checklist edits beat stale all-TRUE copies.
     """
     samples: List[str] = []
     for i in range(max(1, attempts)):
@@ -132,29 +133,36 @@ def _fetch_stable(url: str, attempts: int = 5, delay_s: float = 0.25) -> str:
     scored = [(_supplement_score(t), t) for t in samples]
     row_counts = [s[2] for s, _ in scored]
     counts = Counter(row_counts)
-    multi = [(n, c) for n, c in counts.items() if c >= 2]
+    max_rows = max(row_counts)
+    majority_rows, majority_n = counts.most_common(1)[0]
 
-    if len(multi) >= 2:
-        big = max(n for n, _ in multi)
-        small = min(n for n, _ in multi)
-        # Prefer smaller consensus when it's a plausible deletion (~same size),
-        # not a truncated glitch.
-        target_rows = small if small >= int(big * 0.9) else big
-    elif multi:
-        target_rows = multi[0][0]
-    else:
-        target_rows = max(row_counts)
+    use_rows = max_rows
+    # Lone oversized snapshot that is poorer than a solid majority → CDN glitch
+    if (
+        counts[max_rows] == 1
+        and majority_n >= 3
+        and 0 < (max_rows - majority_rows) <= 3
+    ):
+        max_best = max(
+            (s for s, _ in scored if s[2] == max_rows),
+            key=lambda s: (s[0], s[1]),
+        )
+        maj_best = max(
+            (s for s, _ in scored if s[2] == majority_rows),
+            key=lambda s: (s[0], s[1]),
+        )
+        if max_best[0] <= maj_best[0] and max_best[1] < maj_best[1]:
+            use_rows = majority_rows
 
-    candidates = [(s, t) for s, t in scored if s[2] == target_rows]
+    candidates = [(s, t) for s, t in scored if s[2] == use_rows]
     if not candidates:
         candidates = scored
 
-    # Within chosen size: most notes, then most FALSEs
-    _, best = max(candidates, key=lambda st: (st[0][0], st[0][1]))
+    _, best = max(candidates, key=lambda st: (st[0][0], st[0][1], st[0][2]))
     logger.info(
-        "Sheet fetch row_counts=%s target=%s picked=%s",
+        "Sheet fetch row_counts=%s use_rows=%s picked=%s",
         row_counts,
-        target_rows,
+        use_rows,
         _supplement_score(best),
     )
     return best
@@ -323,6 +331,15 @@ def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
                 stats = health_service.upsert_supplement_rows(db, rows, replace=True)
                 result["supplements"] = stats["upserted"]
                 result["supplements_deleted"] = stats["deleted"]
+                # Helpful sync feedback for the UI
+                dated = []
+                for r in rows:
+                    d = health_service._parse_date(r.get("Date") or r.get("date"))
+                    if d:
+                        dated.append(d.isoformat())
+                dated.sort()
+                result["latest_dates"] = dated[-5:]
+                result["supplement_fingerprint"] = incoming_fp
             elif sheet == "body":
                 stats = health_service.upsert_body_rows(db, rows, replace=True)
                 result["body"] = stats["upserted"]

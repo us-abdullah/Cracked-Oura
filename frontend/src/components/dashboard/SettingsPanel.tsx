@@ -6,7 +6,6 @@ import { X, Loader2, AlertCircle, Download, Copy, Upload } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { api, type AutomationStatusResponse } from '@/lib/api';
-import { CloudSyncSection } from '@/components/dashboard/CloudSyncSection';
 
 interface SettingsPanelProps {
     onClose: () => void;
@@ -387,7 +386,6 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                             ))}
                         </div>
                     )}
-                    <CloudSyncSection />
                 </div>
             </div>
         );
@@ -415,8 +413,9 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                         <h3 className="text-sm font-medium">Google Sheets (live)</h3>
                         <p className="text-sm text-muted-foreground">
                             Your published sheets sync automatically every{' '}
-                            {sheetsInfo?.sync_minutes ?? 5} minutes. Edit the sheet in Google and
-                            it will show up here after the next sync.
+                            {sheetsInfo?.sync_minutes ?? 5} minutes. After you edit checkboxes or
+                            add a day in Google Sheets, wait about a minute for Google&apos;s publish
+                            cache, then hit Sync — the calendar % and colors should update.
                         </p>
                         {sheetsInfo?.last_sync && (
                             <p className="text-xs text-muted-foreground">
@@ -439,11 +438,13 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                         addLog('Sync already running — wait a moment.');
                                     } else if (r.skipped_stale) {
                                         addLog(
-                                            `Kept current data (Google returned a stale snapshot). notes=${r.notes_imported ?? 0}`
+                                            `Kept current data (Google returned a stale snapshot). Try again in ~1 min after editing the sheet.`
                                         );
                                     } else {
+                                        const latest = (r.latest_dates || []).join(', ');
                                         addLog(
-                                            `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), notes ${r.notes_imported ?? 0}`
+                                            `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), notes ${r.notes_imported ?? 0}` +
+                                                (latest ? ` · latest days: ${latest}` : '')
                                         );
                                     }
                                     if (r.errors?.length) {
@@ -484,7 +485,6 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                             ))}
                         </div>
                     )}
-                    <CloudSyncSection />
                 </div>
             </div>
         );
@@ -811,8 +811,6 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                         </div>
                     </div>
                 )}
-
-                <CloudSyncSection />
             </div>
         </div >
     );

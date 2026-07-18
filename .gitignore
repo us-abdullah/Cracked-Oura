@@ -35,3 +35,8 @@ frontend/dist/win-unpacked/
 vendor/Hevy-Insights/frontend/node_modules/
 vendor/Hevy-Insights/frontend/dist/
 
+# Phone companion (web/)
+web/node_modules/
+web/dist/
+web/.vite/
+web/tsconfig.tsbuildinfo

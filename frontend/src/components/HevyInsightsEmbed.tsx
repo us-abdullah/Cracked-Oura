@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { getApiBase, getHevyInsightsBase } from '@/lib/apiBase';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
+const HEVY_INSIGHTS_BASE = 'http://localhost:8000/hevy-insights/';
 const HEVY_SYNC_EVENT = 'hevy-data-synced';
 
 function hevyUrl(path: string) {
-    return `${getHevyInsightsBase()}${path.replace(/^\//, '')}`;
+    return `${HEVY_INSIGHTS_BASE}${path.replace(/^\//, '')}`;
 }
 
 type HevyInsightsEmbedProps = {
@@ -43,7 +43,7 @@ export function HevyInsightsEmbed({ routePath = '/dashboard' }: HevyInsightsEmbe
         const hasLocal = !!(status.has_local_data || (status.workout_count ?? 0) > 0);
         setCanBrowse(!!status.logged_in || hasLocal);
         // Re-hydrate Insights cookies from saved tokens when present
-        await fetch(`${getApiBase()}/api/hi/auth/status`, {
+        await fetch('http://localhost:8000/api/hi/auth/status', {
             credentials: 'include',
         }).catch(() => null);
         setReady(true);
