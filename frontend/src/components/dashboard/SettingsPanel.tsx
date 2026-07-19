@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X, Loader2, AlertCircle, Download, Copy, Upload } from "lucide-react";
+import { X, Loader2, AlertCircle, Download, Copy, Upload, Smartphone } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { api, type AutomationStatusResponse } from '@/lib/api';
@@ -36,6 +36,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
     const [csvText, setCsvText] = useState('');
     const [sheetsInfo, setSheetsInfo] = useState<any>(null);
     const [sheetsSyncing, setSheetsSyncing] = useState(false);
+    const [phonePublishing, setPhonePublishing] = useState(false);
 
     useEffect(() => {
         api.getSettings()
@@ -272,6 +273,50 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
         }
     };
 
+    const handlePublishPhoneSite = async () => {
+        setPhonePublishing(true);
+        setError(null);
+        try {
+            const r = await api.publishPhoneSite();
+            addLog(r.message || (r.pushed ? 'Phone site pushed.' : 'Already up to date.'));
+            (r.logs || []).forEach((line: string) => {
+                // Keep UI readable — one log line per chunk
+                const trimmed = String(line).trim();
+                if (trimmed) addLog(trimmed.length > 240 ? trimmed.slice(0, 240) + '…' : trimmed);
+            });
+        } catch (err: any) {
+            setError(err.message || 'Phone publish failed');
+        } finally {
+            setPhonePublishing(false);
+        }
+    };
+
+    const phoneSiteSection = (
+        <div className="space-y-3 border-t pt-4">
+            <h3 className="text-sm font-medium flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Phone site (Vercel)
+            </h3>
+            <p className="text-sm text-muted-foreground">
+                Exports your latest desktop data and pushes it so the phone website updates.
+                Keep this app open while it runs (~1–2 min). Or double-click{' '}
+                <code className="text-xs">scripts\Update-Phone-Site.bat</code> in the repo.
+            </p>
+            <Button
+                onClick={handlePublishPhoneSite}
+                disabled={phonePublishing || loading || sheetsSyncing}
+                className="w-full"
+            >
+                {phonePublishing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                    <Smartphone className="h-4 w-4 mr-2" />
+                )}
+                {phonePublishing ? 'Updating phone site…' : 'Update phone site now'}
+            </Button>
+        </div>
+    );
+
     const handleHealthImport = async () => {
         setLoading(true);
         setError(null);
@@ -379,6 +424,9 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                             <p className="text-xs text-muted-foreground">Last sync: {hevyInfo.last_run}</p>
                         )}
                     </div>
+
+                    {phoneSiteSection}
+
                     {logs.length > 0 && (
                         <div className="text-xs font-mono bg-muted p-2 rounded max-h-40 overflow-auto">
                             {logs.map((l, i) => (
@@ -467,6 +515,8 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                             Sync from Google Sheets now
                         </Button>
                     </div>
+
+                    {phoneSiteSection}
 
                     <div className="space-y-2 border-t pt-4">
                         <Label>Manual CSV import (optional)</Label>
@@ -681,6 +731,8 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                 </Alert>
                             )}
                         </div>
+
+                        {phoneSiteSection}
 
                         {/* Logs Console */}
                         <div className="space-y-2">

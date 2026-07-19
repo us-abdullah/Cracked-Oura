@@ -331,6 +331,41 @@ export const api = {
         return data;
     },
 
+    /** Export desktop data + git push so Vercel phone site updates. */
+    publishPhoneSite: async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 360_000); // 6 min
+        try {
+            const res = await fetch(`${BASE_URL}/api/mirror/publish`, {
+                method: 'POST',
+                signal: controller.signal,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const detail =
+                    typeof data.detail === 'string'
+                        ? data.detail
+                        : Array.isArray(data.detail)
+                          ? data.detail.map((d: any) => d.msg || d).join('; ')
+                          : data.detail || 'Phone publish failed';
+                throw new Error(detail);
+            }
+            return data as {
+                status: string;
+                pushed: boolean;
+                message: string;
+                logs?: string[];
+            };
+        } catch (err: any) {
+            if (err?.name === 'AbortError') {
+                throw new Error('Phone publish timed out. Try scripts\\Update-Phone-Site.bat instead.');
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    },
+
     // --- Chat ---
     sendChatMessage: async (message: string, history: ChatMessage[], context?: any) => {
         const controller = new AbortController();

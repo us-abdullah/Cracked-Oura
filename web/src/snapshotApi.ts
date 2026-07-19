@@ -202,6 +202,14 @@ export const api = {
   healthSheetsSave: () => desktopOnly('Save sheets config'),
   healthSheetsSync: () => desktopOnly('Sheets sync'),
 
+  publishPhoneSite: async () =>
+    ok({
+      status: 'ok',
+      pushed: false,
+      message: 'Phone publish runs from the desktop app (or scripts\\Update-Phone-Site.bat).',
+      logs: [],
+    }),
+
   sendChatMessage: async (message: string, _history?: ChatMessage[]) =>
     ok({
       role: 'assistant',

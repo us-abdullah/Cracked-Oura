@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.src.config import config_manager
@@ -128,3 +131,121 @@ def build_mirror_snapshot(db: Session) -> Dict[str, Any]:
 @router.get("/snapshot")
 async def mirror_snapshot(db: Session = Depends(get_db)):
     return build_mirror_snapshot(db)
+
+
+def _find_repo_root() -> Path | None:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "web" / "scripts" / "export-snapshot.mjs").is_file() and (
+            parent / ".git"
+        ).exists():
+            return parent
+    return None
+
+
+def _run(cmd: list[str], cwd: Path, timeout: int = 300) -> tuple[int, str]:
+    try:
+        if os.name == "nt":
+            # shell=True so npm.cmd / git resolve via PATH
+            cmdline = subprocess.list2cmdline(cmd)
+            proc = subprocess.run(
+                cmdline,
+                cwd=str(cwd),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                shell=True,
+            )
+        else:
+            proc = subprocess.run(
+                cmd,
+                cwd=str(cwd),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        out = (proc.stdout or "") + (proc.stderr or "")
+        return proc.returncode, out.strip()
+    except subprocess.TimeoutExpired:
+        return 1, f"Timed out after {timeout}s: {' '.join(cmd)}"
+    except FileNotFoundError as e:
+        return 1, f"Command not found: {e}"
+
+
+@router.post("/publish")
+async def publish_phone_mirror():
+    """
+    Export desktop data → web/public/mirror-snapshot.json → git commit + push.
+    Same flow as scripts/Update-Phone-Site.bat (for the Settings button).
+    """
+    root = _find_repo_root()
+    if not root:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Git repo not found next to this backend. "
+                "Double-click scripts\\Update-Phone-Site.bat inside your Cracked-Oura folder instead."
+            ),
+        )
+
+    logs: list[str] = []
+    web = root / "web"
+
+    logs.append("Exporting snapshot…")
+    code, out = _run(
+        ["npm", "run", "export:snapshot"],
+        cwd=web,
+        timeout=300,
+    )
+    if out:
+        logs.append(out[-4000:])
+    if code != 0:
+        raise HTTPException(status_code=500, detail="\n".join(logs + ["Export failed."]))
+
+    snap = web / "public" / "mirror-snapshot.json"
+    if not snap.is_file():
+        raise HTTPException(status_code=500, detail="Export did not write mirror-snapshot.json")
+
+    logs.append("Staging snapshot…")
+    code, out = _run(
+        ["git", "add", "--", "web/public/mirror-snapshot.json"],
+        cwd=root,
+        timeout=60,
+    )
+    if code != 0:
+        raise HTTPException(status_code=500, detail="\n".join(logs + [out, "git add failed."]))
+
+    code, status_out = _run(
+        ["git", "status", "--porcelain", "--", "web/public/mirror-snapshot.json"],
+        cwd=root,
+        timeout=30,
+    )
+    if not (status_out or "").strip():
+        logs.append("Snapshot unchanged — nothing to push.")
+        return {"status": "ok", "pushed": False, "message": "Already up to date", "logs": logs}
+
+    logs.append("Committing…")
+    code, out = _run(
+        ["git", "commit", "-m", "Update phone snapshot from desktop."],
+        cwd=root,
+        timeout=60,
+    )
+    if out:
+        logs.append(out[-2000:])
+    if code != 0:
+        raise HTTPException(status_code=500, detail="\n".join(logs + ["git commit failed."]))
+
+    logs.append("Pushing to GitHub (Vercel redeploy)…")
+    code, out = _run(["git", "push"], cwd=root, timeout=180)
+    if out:
+        logs.append(out[-2000:])
+    if code != 0:
+        raise HTTPException(status_code=500, detail="\n".join(logs + ["git push failed."]))
+
+    logs.append("Done. Wait ~1 minute, then hard-refresh the phone site.")
+    return {
+        "status": "ok",
+        "pushed": True,
+        "message": "Phone snapshot pushed — Vercel will redeploy.",
+        "logs": logs,
+    }

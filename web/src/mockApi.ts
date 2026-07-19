@@ -178,6 +178,14 @@ export const api = {
   healthSheetsSave: () => webOnly('Save sheets config'),
   healthSheetsSync: () => webOnly('Sheets sync'),
 
+  publishPhoneSite: async () =>
+    ok({
+      status: 'ok',
+      pushed: false,
+      message: 'Phone publish runs from the desktop app.',
+      logs: [],
+    }),
+
   sendChatMessage: async (message: string, _history: ChatMessage[]) =>
     ok({
       role: 'assistant',
