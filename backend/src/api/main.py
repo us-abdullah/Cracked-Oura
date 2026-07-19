@@ -4,6 +4,7 @@ from backend.src.api.routes import router
 from backend.src.api.routes_hevy import router as hevy_router
 from backend.src.api.routes_health import router as health_router
 from backend.src.api.routes_hevy_insights import router as hevy_insights_router
+from backend.src.api.routes_mirror import router as mirror_router
 from backend.src.database import init_db, SessionLocal
 
 import asyncio
@@ -121,6 +122,7 @@ app.include_router(router)
 app.include_router(hevy_router)
 app.include_router(health_router)
 app.include_router(hevy_insights_router)
+app.include_router(mirror_router)
 
 # --- API Models for Automation ---
 class AutomationConfig(BaseModel):

@@ -1,47 +1,76 @@
 /**
- * Web stand-in for the Hevy Insights iframe.
- * Sidebar Training pages still navigate; content is a visual placeholder.
+ * Web stand-in for the Hevy Insights iframe — uses exported snapshot stats.
  */
+import { useEffect, useState } from 'react';
 import { LayoutDashboard, Dumbbell, List, BookOpen, Scale, Settings } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const TITLES: Record<string, { title: string; blurb: string; Icon: typeof LayoutDashboard }> = {
   '/dashboard': {
     title: 'Dashboard',
-    blurb: 'Training overview — volume, hours, streaks (live data on desktop).',
+    blurb: 'Training overview from your last desktop export.',
     Icon: LayoutDashboard,
   },
   '/workouts-card': {
     title: 'Workouts (Card)',
-    blurb: 'Card view of recent sessions.',
+    blurb: 'Card view summary from snapshot.',
     Icon: Dumbbell,
   },
   '/workouts-list': {
     title: 'Workouts (List)',
-    blurb: 'List view of workout history.',
+    blurb: 'Workout history counts from snapshot.',
     Icon: List,
   },
   '/exercises': {
     title: 'Exercises',
-    blurb: 'Exercise library, PRs, and progressions.',
+    blurb: 'Exercise library lives on desktop Hevy Insights.',
     Icon: BookOpen,
   },
   '/body-measurements': {
     title: 'Body Measurements',
-    blurb: 'Weight and measurement trends from Hevy.',
+    blurb: 'Body trends from Health compartment when synced.',
     Icon: Scale,
   },
   '/settings': {
     title: 'Settings',
-    blurb: 'Hevy Insights preferences (weight units, date formats).',
+    blurb: 'Configure Hevy sync in the desktop app.',
     Icon: Settings,
   },
 };
 
 type Props = { routePath?: string };
 
+function fmtVolume(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M kg`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k kg`;
+  return `${Math.round(n)} kg`;
+}
+
 export function HevyInsightsEmbed({ routePath = '/dashboard' }: Props) {
   const meta = TITLES[routePath] || TITLES['/dashboard'];
   const Icon = meta.Icon;
+  const [status, setStatus] = useState<any>(null);
+  const [heatmap, setHeatmap] = useState<any[]>([]);
+  const [weekly, setWeekly] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.hevyStatus().then(setStatus).catch(() => setStatus(null));
+    api.hevyHeatmap().then(setHeatmap).catch(() => setHeatmap([]));
+    api.hevyWeeklyVolume().then(setWeekly).catch(() => setWeekly([]));
+  }, []);
+
+  const workouts = status?.workout_count ?? 0;
+  const volumeTotal = Array.isArray(weekly)
+    ? weekly.reduce((s, w) => s + (Number(w.volume ?? w.total_volume ?? 0) || 0), 0)
+    : 0;
+  const heatVals = (heatmap || [])
+    .map((d) => Number(d.count ?? d.value ?? d.workouts ?? 0) || 0)
+    .filter((n) => n > 0);
+  const recentBars =
+    weekly?.length > 0
+      ? weekly.slice(-12).map((w) => Number(w.volume ?? w.total_volume ?? 0) || 0)
+      : heatVals.slice(-12);
+  const maxBar = Math.max(1, ...recentBars);
 
   return (
     <div className="absolute inset-0 bg-background overflow-auto p-6">
@@ -55,32 +84,47 @@ export function HevyInsightsEmbed({ routePath = '/dashboard' }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {['Total Workouts', 'Total Volume', 'Hours Trained', 'Avg Workout', 'Streak'].map(
-          (label, i) => (
-            <div key={label} className="rounded-xl border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">{label}</p>
-              <p className="text-xl font-semibold tabular-nums">
-                {i === 0 ? '42' : i === 1 ? '128.4k kg' : i === 2 ? '36.2' : i === 3 ? '52m' : '3'}
-              </p>
-            </div>
-          )
-        )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Total Workouts</p>
+          <p className="text-xl font-semibold tabular-nums">{workouts || '—'}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Account</p>
+          <p className="text-xl font-semibold truncate">
+            {status?.username || status?.email || '—'}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Local data</p>
+          <p className="text-xl font-semibold">
+            {status?.has_local_data ? 'Yes' : 'No'}
+          </p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Volume (snapshot)</p>
+          <p className="text-xl font-semibold tabular-nums">
+            {volumeTotal > 0 ? fmtVolume(volumeTotal) : '—'}
+          </p>
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card p-6 min-h-[220px]">
-        <p className="text-sm font-medium mb-2">Training Analysis</p>
+        <p className="text-sm font-medium mb-2">Recent training</p>
         <div className="h-40 rounded-lg bg-muted/40 flex items-end gap-1 px-2 pb-2">
-          {[40, 55, 35, 70, 60, 80, 45, 65, 75, 50, 85, 60].map((h, i) => (
+          {(recentBars.length
+            ? recentBars
+            : Array.from({ length: 12 }, () => 0)
+          ).map((v, i) => (
             <div
               key={i}
-              className="flex-1 rounded-t bg-violet-500/70"
-              style={{ height: `${h}%` }}
+              className="flex-1 rounded-t bg-violet-500/70 min-h-[4px]"
+              style={{ height: `${Math.max(4, (v / maxBar) * 100)}%` }}
             />
           ))}
         </div>
         <p className="text-xs text-muted-foreground mt-3">
-          Web mirror — full Hevy Insights data runs in the desktop app after Sync.
+          Phone mirror uses your last desktop export. Full Hevy Insights charts stay on desktop.
         </p>
       </div>
     </div>

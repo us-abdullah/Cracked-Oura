@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174 --host",
+    "dev:snapshot": "vite --port 5174 --host --mode snapshot",
+    "export:snapshot": "node scripts/export-snapshot.mjs",
     "build": "vite build",
     "preview": "vite preview --port 5174 --host"
   },

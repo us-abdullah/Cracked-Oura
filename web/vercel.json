@@ -6,7 +6,7 @@
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "build": {
     "env": {
-      "VITE_WEB_MOCK": "1"
+      "VITE_WEB_SNAPSHOT": "1"
     }
   }
 }

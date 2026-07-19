@@ -57,19 +57,29 @@ function dependencyAliases() {
 /**
  * Visual mirror of the desktop app.
  * - `@` → frontend/src (same UI — desktop edits auto-appear here)
- * - Default: live desktop backend at :8000
- * - Optional: VITE_WEB_MOCK=1 for offline demo fixtures
+ * - Default (dev): live desktop backend at :8000
+ * - VITE_WEB_SNAPSHOT=1 (Vercel): real data from /mirror-snapshot.json
+ * - VITE_WEB_MOCK=1: offline demo fixtures only
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
   const useMock = env.VITE_WEB_MOCK === '1';
+  const useSnapshot =
+    !useMock &&
+    (env.VITE_WEB_SNAPSHOT === '1' || mode === 'production');
+
+  const apiShim = useMock
+    ? path.resolve(__dirname, './src/mockApi.ts')
+    : useSnapshot
+      ? path.resolve(__dirname, './src/snapshotApi.ts')
+      : null;
 
   const alias = [
-    ...(useMock
+    ...(apiShim
       ? [
           {
             find: '@/lib/api',
-            replacement: path.resolve(__dirname, './src/mockApi.ts'),
+            replacement: apiShim,
           },
           {
             find: '@/components/HevyInsightsEmbed',
