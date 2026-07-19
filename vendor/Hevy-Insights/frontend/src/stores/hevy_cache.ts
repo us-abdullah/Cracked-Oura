@@ -41,7 +41,7 @@ export const useHevyCache = defineStore("hevyCache", {
     workoutsLastFetched: null as number | null,
     error: null as string | null,
     dataSource: (localStorage.getItem("data_source") || "api") as "api" | "csv",
-    weightUnit: (localStorage.getItem("weight_unit") || "kg") as "kg" | "lbs",
+    weightUnit: (localStorage.getItem("weight_unit") || "lbs") as "kg" | "lbs",
     plateauDetectionSessions: parseInt(localStorage.getItem("plateau_detection_sessions") || "5"),
     dateFormat: (localStorage.getItem("date_format") || "iso") as "iso" | "eu" | "us" | "uk",
     graphAxisFormat: (localStorage.getItem("graph_axis_format") || "short") as "numeric" | "short" | "long",

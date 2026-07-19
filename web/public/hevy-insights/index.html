@@ -5,6 +5,10 @@
     <link rel="icon" type="image/png" href="/hevy-insights/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Hevy Insights</title>
+    <!-- Usman Biotracker: default Training weights to lbs -->
+    <script>
+      try { localStorage.setItem('weight_unit', 'lbs'); } catch (e) {}
+    </script>
     <!-- Seed snapshot into localStorage BEFORE Vue boots -->
     <script src="/hevy-insights/hi-snapshot-shim.js"></script>
     <script type="module">

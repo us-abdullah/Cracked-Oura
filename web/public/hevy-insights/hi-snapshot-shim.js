@@ -29,6 +29,8 @@
     localStorage.setItem('hevy_access_token', 'csv_mode');
     localStorage.setItem('data_source', 'csv');
     localStorage.setItem('csv_workouts', JSON.stringify(workouts));
+    // Usman Biotracker default: pounds
+    localStorage.setItem('weight_unit', 'lbs');
 
     // Helpful for UI bits that still peek at account-ish keys
     try {

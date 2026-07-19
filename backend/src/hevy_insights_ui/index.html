@@ -5,10 +5,14 @@
     <link rel="icon" type="image/png" href="/hevy-insights/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Hevy Insights</title>
+    <!-- Usman Biotracker: default Training weights to lbs before Vue boots -->
+    <script>
+      try { localStorage.setItem('weight_unit', 'lbs'); } catch (e) {}
+    </script>
     <script type="module" crossorigin src="/hevy-insights/assets/index-DT6cdMhq.js"></script>
     <link rel="stylesheet" crossorigin href="/hevy-insights/assets/index-CB7qaXCS.css">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"></div>
   </body>
 </html>
