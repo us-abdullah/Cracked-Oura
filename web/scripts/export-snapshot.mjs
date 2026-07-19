@@ -52,34 +52,54 @@ function slimDay(day) {
   return out;
 }
 
-function slimWorkout(w) {
+/** Keep sets for Hevy Insights Vue; drop media + locale title bloat. */
+function exportWorkout(w) {
   if (!w || typeof w !== 'object') return w;
-  const start = w.start_time;
-  const end = w.end_time;
-  let minutes = null;
-  if (typeof start === 'number' && typeof end === 'number' && end > start) {
-    minutes = Math.round((end - start) / 60);
-  }
   const exercises = Array.isArray(w.exercises)
-    ? w.exercises.map((ex) => ({
-        title: ex.title || 'Exercise',
-        muscle_group: ex.muscle_group || null,
-        set_count: Array.isArray(ex.sets)
-          ? ex.sets.length
-          : typeof ex.sets === 'string'
-            ? ex.sets.trim().length || null
-            : null,
-      }))
+    ? w.exercises.map((ex) => {
+        const sets = Array.isArray(ex.sets)
+          ? ex.sets.map((s) => ({
+              id: s.id,
+              index: s.index,
+              weight_kg: s.weight_kg,
+              reps: s.reps,
+              rpe: s.rpe,
+              indicator: s.indicator || s.set_type,
+              set_type: s.set_type || s.indicator,
+              prs: s.prs || [],
+              completed_at: s.completed_at,
+              distance_meters: s.distance_meters,
+              duration_seconds: s.duration_seconds,
+              custom_metric: s.custom_metric,
+            }))
+          : [];
+        return {
+          id: ex.id,
+          title: ex.title,
+          muscle_group: ex.muscle_group,
+          exercise_type: ex.exercise_type,
+          equipment_category: ex.equipment_category,
+          exercise_template_id: ex.exercise_template_id,
+          notes: ex.notes || '',
+          index: ex.index,
+          rest_seconds: ex.rest_seconds,
+          other_muscles: ex.other_muscles,
+          sets,
+        };
+      })
     : [];
+
   return {
     id: w.id || w.short_id,
-    name: w.name || 'Workout',
-    start_time: start,
-    end_time: end,
-    minutes,
+    short_id: w.short_id,
+    name: w.name || w.title || 'Workout',
+    title: w.name || w.title || 'Workout',
+    start_time: w.start_time,
+    end_time: w.end_time,
     estimated_volume_kg: w.estimated_volume_kg ?? null,
     username: w.username || null,
     nth_workout: w.nth_workout ?? null,
+    description: w.description || '',
     exercises,
   };
 }
@@ -87,8 +107,8 @@ function slimWorkout(w) {
 async function fetchAllHiWorkouts() {
   const all = [];
   const seen = new Set();
-  const pageSize = 5; // backend currently hardcodes limit=5; uses offset=
-  for (let offset = 0; offset < 500; offset += pageSize) {
+  const pageSize = 5; // running backend pages with offset=, limit 5
+  for (let offset = 0; offset < 2000; offset += pageSize) {
     const data = await tryJson(
       `${BASE}/api/hi/workouts?offset=${offset}`,
       null
@@ -97,11 +117,11 @@ async function fetchAllHiWorkouts() {
     if (!batch.length) break;
     let added = 0;
     for (const w of batch) {
-      const slim = slimWorkout(w);
-      const id = slim.id || `${slim.start_time}-${slim.name}`;
+      const row = exportWorkout(w);
+      const id = row.id || `${row.start_time}-${row.name}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      all.push(slim);
+      all.push(row);
       added += 1;
     }
     if (batch.length < pageSize || added === 0) break;
@@ -244,16 +264,25 @@ async function main() {
 
   if (!snap.hevy_durations?.length && snap.hevy_workouts.length) {
     snap.hevy_durations = snap.hevy_workouts
-      .filter((w) => w.minutes != null)
-      .map((w) => ({
-        date:
-          typeof w.start_time === 'number'
-            ? new Date(w.start_time * 1000).toISOString().slice(0, 10)
-            : null,
-        minutes: w.minutes,
-        name: w.name,
-      }))
-      .filter((d) => d.date);
+      .map((w) => {
+        let minutes = null;
+        if (
+          typeof w.start_time === 'number' &&
+          typeof w.end_time === 'number' &&
+          w.end_time > w.start_time
+        ) {
+          minutes = Math.round((w.end_time - w.start_time) / 60);
+        }
+        return {
+          date:
+            typeof w.start_time === 'number'
+              ? new Date(w.start_time * 1000).toISOString().slice(0, 10)
+              : null,
+          minutes,
+          name: w.name,
+        };
+      })
+      .filter((d) => d.date && d.minutes != null);
   }
 
   fs.mkdirSync(path.dirname(OUT), { recursive: true });

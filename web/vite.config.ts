@@ -83,7 +83,8 @@ export default defineConfig(({ mode }) => {
           },
           {
             find: '@/components/HevyInsightsEmbed',
-            replacement: path.resolve(__dirname, './src/TrainingMirror.tsx'),
+            // Real Hevy Insights Vue SPA (iframe) + snapshot /api/hi shim
+            replacement: path.resolve(__dirname, './src/HevyInsightsIframe.tsx'),
           },
         ]
       : []),

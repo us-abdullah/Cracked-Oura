@@ -3,7 +3,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/hevy-insights", "destination": "/hevy-insights/index.html" },
+    { "source": "/hevy-insights/", "destination": "/hevy-insights/index.html" },
+    { "source": "/((?!hevy-insights/).*)", "destination": "/index.html" }
+  ],
   "build": {
     "env": {
       "VITE_WEB_SNAPSHOT": "1"
