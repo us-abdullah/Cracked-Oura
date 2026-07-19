@@ -84,17 +84,17 @@ const secondaryColor = computed(() => {
 type Range = "1m" | "3m" | "6m" | "1y" | "all";
 type DisplayStyle = "mo" | "wk";
 
-const hoursTrained_Range = ref<Range>("6m");
-const hoursTrained_Display = ref<DisplayStyle>("mo");
+const hoursTrained_Range = ref<Range>("all");
+const hoursTrained_Display = ref<DisplayStyle>("wk");
 
-const volumeProgression_Range = ref<Range>("6m");
-const volumeProgression_Display = ref<DisplayStyle>("mo");
+const volumeProgression_Range = ref<Range>("all");
+const volumeProgression_Display = ref<DisplayStyle>("wk");
 
-const repsAndSets_Range = ref<Range>("6m");
-const repsAndSets_Display = ref<DisplayStyle>("mo");
+const repsAndSets_Range = ref<Range>("all");
+const repsAndSets_Display = ref<DisplayStyle>("wk");
 
-const prsOverTime_Range = ref<Range>("6m");
-const prsOverTime_Display = ref<DisplayStyle>("mo");
+const prsOverTime_Range = ref<Range>("all");
+const prsOverTime_Display = ref<DisplayStyle>("wk");
 
 const muscleDistribution_Range = ref<Range>("all");
 const muscleDistribution_Grouping = ref<"groups" | "muscles">("groups");
