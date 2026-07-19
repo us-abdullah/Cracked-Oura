@@ -234,10 +234,16 @@ def get_workouts(
         )
         count = hevy_sync.local_workout_count(db)
 
+        # Prefer explicit offset; otherwise page/page_size (Insights UI uses both styles)
+        effective_offset = offset if offset > 0 else max(0, (page - 1) * page_size)
+        effective_limit = min(50, max(1, page_size))
+
         # Offline / after restart: serve SQLite without requiring a live Hevy session
         if not access and not refresh_tok:
             if count > 0 and not refresh:
-                return hevy_sync.workouts_page_from_db(db, offset=offset, limit=5)
+                return hevy_sync.workouts_page_from_db(
+                    db, offset=effective_offset, limit=effective_limit
+                )
             raise HTTPException(
                 status_code=401,
                 detail="Not authenticated. Sign in via Training Settings to sync.",
@@ -256,7 +262,9 @@ def get_workouts(
                 # Keep serving stale local cache if refresh fails
                 logger.warning("Hevy live refresh failed; serving local cache: %s", e)
 
-        return hevy_sync.workouts_page_from_db(db, offset=offset, limit=5)
+        return hevy_sync.workouts_page_from_db(
+            db, offset=effective_offset, limit=effective_limit
+        )
     finally:
         db.close()
 

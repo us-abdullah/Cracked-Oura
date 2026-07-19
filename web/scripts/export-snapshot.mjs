@@ -3,8 +3,6 @@
  *
  * Usage (desktop backend must be on :8000):
  *   npm run export:snapshot
- *
- * Writes web/public/mirror-snapshot.json — commit + redeploy for the phone site to update.
  */
 import fs from 'fs';
 import path from 'path';
@@ -28,7 +26,10 @@ async function tryJson(url, fallback = null) {
   }
 }
 
-/** Drop heavy intraday series so the phone JSON stays small. */
+/**
+ * Keep overnight chart series (hr_data / hrv_data / sleep_phase_5_min).
+ * Drop only the huge unused series (movement, 30s phases, MET grid).
+ */
 function slimDay(day) {
   if (!day || typeof day !== 'object') return day;
   const out = { ...day };
@@ -41,16 +42,71 @@ function slimDay(day) {
       if (!s || typeof s !== 'object') return s;
       const {
         movement_30_sec,
-        sleep_phase_5_min,
         sleep_phase_30_sec,
-        hr_data,
-        hrv_data,
+        // keep: hr_data, hrv_data, sleep_phase_5_min
         ...rest
       } = s;
       return rest;
     });
   }
   return out;
+}
+
+function slimWorkout(w) {
+  if (!w || typeof w !== 'object') return w;
+  const start = w.start_time;
+  const end = w.end_time;
+  let minutes = null;
+  if (typeof start === 'number' && typeof end === 'number' && end > start) {
+    minutes = Math.round((end - start) / 60);
+  }
+  const exercises = Array.isArray(w.exercises)
+    ? w.exercises.map((ex) => ({
+        title: ex.title || 'Exercise',
+        muscle_group: ex.muscle_group || null,
+        set_count: Array.isArray(ex.sets)
+          ? ex.sets.length
+          : typeof ex.sets === 'string'
+            ? ex.sets.trim().length || null
+            : null,
+      }))
+    : [];
+  return {
+    id: w.id || w.short_id,
+    name: w.name || 'Workout',
+    start_time: start,
+    end_time: end,
+    minutes,
+    estimated_volume_kg: w.estimated_volume_kg ?? null,
+    username: w.username || null,
+    nth_workout: w.nth_workout ?? null,
+    exercises,
+  };
+}
+
+async function fetchAllHiWorkouts() {
+  const all = [];
+  const seen = new Set();
+  const pageSize = 5; // backend currently hardcodes limit=5; uses offset=
+  for (let offset = 0; offset < 500; offset += pageSize) {
+    const data = await tryJson(
+      `${BASE}/api/hi/workouts?offset=${offset}`,
+      null
+    );
+    const batch = data?.workouts || [];
+    if (!batch.length) break;
+    let added = 0;
+    for (const w of batch) {
+      const slim = slimWorkout(w);
+      const id = slim.id || `${slim.start_time}-${slim.name}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push(slim);
+      added += 1;
+    }
+    if (batch.length < pageSize || added === 0) break;
+  }
+  return all;
 }
 
 async function assembleFromApis() {
@@ -67,9 +123,6 @@ async function assembleFromApis() {
     health_bloodwork,
     sheets,
     hevy_heatmap,
-    hevy_weekly_volume,
-    hevy_durations,
-    hevy_prs,
   ] = await Promise.all([
     getJson(`${BASE}/api/settings`),
     getJson(`${BASE}/api/dashboard`),
@@ -83,9 +136,6 @@ async function assembleFromApis() {
     tryJson(`${BASE}/api/health/bloodwork`, []),
     tryJson(`${BASE}/api/health/sheets`, {}),
     tryJson(`${BASE}/api/hevy/analytics/heatmap?weeks=26`, []),
-    tryJson(`${BASE}/api/hevy/analytics/weekly-volume?weeks=12`, []),
-    tryJson(`${BASE}/api/hevy/analytics/durations?days=90`, []),
-    tryJson(`${BASE}/api/hevy/analytics/prs`, []),
   ]);
 
   return {
@@ -103,9 +153,10 @@ async function assembleFromApis() {
     settings,
     sheets,
     hevy_heatmap,
-    hevy_weekly_volume,
-    hevy_durations,
-    hevy_prs,
+    hevy_weekly_volume: [],
+    hevy_durations: [],
+    hevy_prs: [],
+    hevy_workouts: [],
     days: {},
   };
 }
@@ -135,7 +186,7 @@ async function main() {
   const days = { ...(snap.days || {}) };
   let ok = 0;
   for (const iso of [...dates].sort()) {
-    if (days[iso]) {
+    if (days[iso] && Object.keys(days[iso]).length) {
       days[iso] = slimDay(days[iso]);
       ok += 1;
       continue;
@@ -154,30 +205,62 @@ async function main() {
   }
   snap.days = days;
 
-  if (!snap.hevy_heatmap) {
+  if (!snap.hevy_heatmap?.length) {
     snap.hevy_heatmap = await tryJson(
       `${BASE}/api/hevy/analytics/heatmap?weeks=26`,
       []
     );
   }
-  if (!snap.hevy_weekly_volume) {
-    snap.hevy_weekly_volume = await tryJson(
-      `${BASE}/api/hevy/analytics/weekly-volume?weeks=12`,
-      []
-    );
+
+  console.log('Fetching Hevy workouts pages…');
+  snap.hevy_workouts = await fetchAllHiWorkouts();
+
+  // Enrich status from workouts if username missing
+  if (snap.hevy_status && !snap.hevy_status.username && snap.hevy_workouts[0]?.username) {
+    snap.hevy_status = {
+      ...snap.hevy_status,
+      username: snap.hevy_workouts[0].username,
+    };
   }
-  if (!snap.hevy_durations) {
-    snap.hevy_durations = await tryJson(
-      `${BASE}/api/hevy/analytics/durations?days=90`,
-      []
-    );
+  if (snap.hevy_status && !snap.hevy_status.workout_count) {
+    snap.hevy_status.workout_count = snap.hevy_workouts.length;
+  }
+
+  // Derive weekly volume bars from workout volumes when analytics route missing
+  if (!snap.hevy_weekly_volume?.length && snap.hevy_workouts.length) {
+    const byWeek = new Map();
+    for (const w of snap.hevy_workouts) {
+      if (typeof w.start_time !== 'number') continue;
+      const d = new Date(w.start_time * 1000);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // Monday
+      const key = weekStart.toISOString().slice(0, 10);
+      byWeek.set(key, (byWeek.get(key) || 0) + (Number(w.estimated_volume_kg) || 0));
+    }
+    snap.hevy_weekly_volume = [...byWeek.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, volume]) => ({ date, volume }));
+  }
+
+  if (!snap.hevy_durations?.length && snap.hevy_workouts.length) {
+    snap.hevy_durations = snap.hevy_workouts
+      .filter((w) => w.minutes != null)
+      .map((w) => ({
+        date:
+          typeof w.start_time === 'number'
+            ? new Date(w.start_time * 1000).toISOString().slice(0, 10)
+            : null,
+        minutes: w.minutes,
+        name: w.name,
+      }))
+      .filter((d) => d.date);
   }
 
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(snap));
   const mb = (fs.statSync(OUT).size / (1024 * 1024)).toFixed(2);
   console.log(
-    `Wrote ${OUT} (${mb} MB)\n  recovery days: ${ok}\n  health calendar: ${(snap.health_calendar || []).length}\n  workouts: ${snap.hevy_status?.workout_count ?? 0}\n  exported_at: ${snap.exported_at}`
+    `Wrote ${OUT} (${mb} MB)\n  recovery days: ${ok}\n  health calendar: ${(snap.health_calendar || []).length}\n  workouts: ${snap.hevy_workouts?.length ?? 0}\n  heatmap days: ${snap.hevy_heatmap?.length ?? 0}\n  exported_at: ${snap.exported_at}`
   );
 }
 

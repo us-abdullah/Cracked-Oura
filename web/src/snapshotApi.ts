@@ -20,6 +20,9 @@ type Snapshot = {
   sheets?: any;
   hevy_heatmap?: any[];
   hevy_weekly_volume?: any[];
+  hevy_workouts?: any[];
+  hevy_durations?: any[];
+  hevy_prs?: any[];
 };
 
 let cache: Snapshot | null = null;
@@ -53,6 +56,37 @@ const desktopOnly = async (action: string) =>
     status: 'ok',
   });
 
+/** Match desktop useOuraData: widgets use singular sleep_session = longest session. */
+function longestSleepSession(day: any) {
+  const sessions = day?.sleep_sessions;
+  if (!Array.isArray(sessions) || sessions.length === 0) return null;
+  return sessions.reduce((longest: any, current: any) => {
+    if (!longest) return current;
+    return (current.total_sleep_duration || 0) > (longest.total_sleep_duration || 0)
+      ? current
+      : longest;
+  }, null);
+}
+
+function resolveDayPath(day: any, path: string): unknown {
+  const parts = path.split('.').filter(Boolean);
+  if (parts.length === 0) return undefined;
+
+  let root: any = day;
+  if (parts[0] === 'sleep_session') {
+    root = longestSleepSession(day);
+    parts.shift();
+    if (parts.length === 0) return root;
+  }
+
+  let v: any = root;
+  for (const p of parts) {
+    if (v == null) return undefined;
+    v = v[p];
+  }
+  return v;
+}
+
 export type { ChatMessage };
 
 export interface AutomationStatusResponse {
@@ -71,7 +105,7 @@ export interface AutomationStatusResponse {
 
 export const api = {
   getSettings: async () => ok((await snap()).settings || {}),
-  saveSettings: (s: Record<string, unknown>) => desktopOnly('Save settings'),
+  saveSettings: (_s: Record<string, unknown>) => desktopOnly('Save settings'),
   clearSession: () => desktopOnly('Clear session'),
   startLogin: () => desktopOnly('Oura login'),
   submitOtp: () => desktopOnly('Submit OTP'),
@@ -83,26 +117,22 @@ export const api = {
 
   getDailyData: async (date: string) => {
     const s = await snap();
+    // Exact date only — do NOT fall back to a previous day (breaks snap-to-latest + charts).
     const day = s.days?.[date];
-    if (day) return ok(day);
-    // Nearest earlier day with data
-    const keys = Object.keys(s.days || {}).sort();
-    const prev = [...keys].reverse().find((k) => k <= date);
-    if (prev && s.days?.[prev]) return ok(s.days[prev]);
-    return ok({});
+    return ok(day || {});
   },
 
   getQuery: async (path: string, startDate?: string, endDate?: string) => {
     const s = await snap();
     const start = startDate || '2000-01-01';
     const end = endDate || '2100-01-01';
-    const points: { date: string; value: number }[] = [];
+    const points: { date: string; value: unknown }[] = [];
     for (const [iso, day] of Object.entries(s.days || {})) {
       if (iso < start || iso > end) continue;
-      const parts = path.split('.');
-      let v: any = day;
-      for (const p of parts) v = v?.[p];
-      if (typeof v === 'number') points.push({ date: iso, value: v });
+      const v = resolveDayPath(day, path);
+      // Keep numbers, strings, arrays, objects — overnight HR/HRV/phases are series.
+      if (v === undefined || v === null) continue;
+      points.push({ date: iso, value: v });
     }
     points.sort((a, b) => a.date.localeCompare(b.date));
     return ok(points);
@@ -113,7 +143,14 @@ export const api = {
       sleep: ['score', 'contributors'],
       readiness: ['score', 'contributors'],
       activity: ['score', 'steps', 'contributors'],
-      sleep_session: ['total_sleep_duration', 'average_hrv', 'lowest_heart_rate'],
+      sleep_session: [
+        'total_sleep_duration',
+        'average_hrv',
+        'lowest_heart_rate',
+        'hr_data',
+        'hrv_data',
+        'sleep_phase_5_min',
+      ],
     }),
 
   getTrends: async (metric: string, startDate: string, endDate: string) =>
@@ -144,10 +181,11 @@ export const api = {
   hevyHeatmap: async () => ok((await snap()).hevy_heatmap || []),
   hevyVolumeByMuscle: async () => ok([]),
   hevyOverload: async () => ok({ exercise: null, points: [] }),
-  hevyPRs: async () => ok([]),
-  hevyDurations: async () => ok([]),
+  hevyPRs: async () => ok((await snap()).hevy_prs || []),
+  hevyDurations: async () => ok((await snap()).hevy_durations || []),
   hevyWeeklyVolume: async () => ok((await snap()).hevy_weekly_volume || []),
   hevyExercises: async () => ok([]),
+  hevyWorkouts: async () => ok((await snap()).hevy_workouts || []),
 
   healthCalendar: async () => ok((await snap()).health_calendar || []),
   healthRates: async () => ok((await snap()).health_rates || []),
