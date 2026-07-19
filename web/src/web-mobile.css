@@ -1,0 +1,68 @@
+/**
+ * Phone / Vercel-only styles. Loaded only from web/src/main.tsx.
+ * Desktop Electron never imports this file.
+ */
+
+/* Comfortable tap targets + avoid iOS zoom on inputs */
+.biotracker-web {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.biotracker-web input,
+.biotracker-web textarea,
+.biotracker-web select {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .biotracker-web {
+    /* Safe areas */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Compact app chrome */
+  .biotracker-web .web-app-header {
+    height: auto !important;
+    min-height: 3.25rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .biotracker-web .web-app-header h1 {
+    font-size: 1.05rem !important;
+  }
+
+  .biotracker-web .web-main-pad {
+    padding: 0.5rem !important;
+  }
+
+  /* Settings / editor drawers go full-bleed on phones */
+  .biotracker-web .web-right-panel {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 50;
+    width: 100% !important;
+    max-width: none !important;
+    border-left: none !important;
+  }
+
+  /* Stacked Recovery/Health cards */
+  .biotracker-web .web-mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.5rem;
+  }
+
+  .biotracker-web .web-mobile-stack > * {
+    width: 100%;
+    min-height: 11rem;
+  }
+
+  /* Hide desktop-only phone publish on tiny screens (use Update Phone Site.bat) */
+  .biotracker-web .web-hide-on-mobile {
+    display: none !important;
+  }
+}

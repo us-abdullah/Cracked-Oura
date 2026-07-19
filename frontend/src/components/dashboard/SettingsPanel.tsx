@@ -6,6 +6,7 @@ import { X, Loader2, AlertCircle, Download, Copy, Upload, Smartphone } from "luc
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { api, type AutomationStatusResponse } from '@/lib/api';
+import { useIsMobileWeb } from '@/lib/webMirror';
 
 interface SettingsPanelProps {
     onClose: () => void;
@@ -15,6 +16,8 @@ interface SettingsPanelProps {
 type AutomationStatus = AutomationStatusResponse['status'];
 
 export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPanelProps) {
+    const isMobileWeb = useIsMobileWeb();
+    const panelWidth = isMobileWeb ? 'w-full max-w-none' : 'w-[400px]';
     const [status, setStatus] = useState<AutomationStatus>('idle');
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
@@ -332,7 +335,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
 
     if (compartment === 'training') {
         return (
-            <div className="w-[400px] border-l bg-card flex flex-col h-full">
+            <div className={cn(panelWidth, "border-l bg-card flex flex-col h-full")}>
                 <div className="p-6 border-b flex items-center justify-between">
                     <h2 className="text-lg font-semibold">Training Settings</h2>
                     <Button variant="ghost" size="icon" onClick={onClose}>
@@ -441,7 +444,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
 
     if (compartment === 'health') {
         return (
-            <div className="w-[400px] border-l bg-card flex flex-col h-full">
+            <div className={cn(panelWidth, "border-l bg-card flex flex-col h-full")}>
                 <div className="p-6 border-b flex items-center justify-between">
                     <h2 className="text-lg font-semibold">Health Settings</h2>
                     <Button variant="ghost" size="icon" onClick={onClose}>
@@ -544,7 +547,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
     }
 
     return (
-        <div className="w-[400px] border-l bg-card flex flex-col h-full">
+        <div className={cn(panelWidth, "border-l bg-card flex flex-col h-full")}>
             {/* Header */}
             <div className="p-6 border-b flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Settings</h2>

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useIsWebMirror, useIsMobileWeb } from '@/lib/webMirror';
 import {
     LayoutDashboard,
     Settings,
@@ -16,6 +17,8 @@ import {
     Moon,
     Dumbbell,
     Pill,
+    Menu,
+    X,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -63,9 +66,17 @@ export function AppSidebar({
     onCompartmentChange,
     staticDashboards = false,
 }: AppSidebarProps) {
+    const isWeb = useIsWebMirror();
+    const isMobileWeb = useIsMobileWeb();
     const [collapsed, setCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+
+    // Web phone: start collapsed to free content width
+    useEffect(() => {
+        if (isMobileWeb) setCollapsed(true);
+    }, [isMobileWeb]);
 
     const handleStartEdit = (dashboard: Dashboard) => {
         setEditingId(dashboard.id);
@@ -79,15 +90,51 @@ export function AppSidebar({
         setEditingId(null);
     };
 
-    return (
+    const selectDashboard = (id: string) => {
+        onDashboardSelect(id);
+        if (isMobileWeb) setMobileOpen(false);
+    };
+
+    const selectCompartment = (id: CompartmentId) => {
+        onCompartmentChange(id);
+        if (isMobileWeb) setMobileOpen(false);
+    };
+
+    const footerControls = (
         <div
             className={cn(
-                'flex flex-col border-r bg-card',
-                collapsed ? 'w-16' : 'w-64',
-                className
+                'space-y-1',
+                isWeb ? 'px-2 pt-2 mt-1 border-t' : 'p-2 border-t space-y-2'
             )}
         >
-            <div className="h-16 flex items-center px-4 border-b">
+            <Button
+                variant="ghost"
+                size="icon"
+                className="w-full"
+                onClick={() => setCollapsed(!collapsed)}
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+                {collapsed ? (
+                    <ChevronRight className="h-4 w-4" />
+                ) : (
+                    <ChevronLeft className="h-4 w-4" />
+                )}
+            </Button>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="w-full"
+                onClick={onSettingsClick}
+                title="Settings"
+            >
+                <Settings className="h-5 w-5" />
+            </Button>
+        </div>
+    );
+
+    const sidebarInner = (
+        <>
+            <div className="h-16 flex items-center px-4 border-b shrink-0">
                 <div
                     className={cn(
                         'flex items-center gap-2 overflow-hidden',
@@ -102,11 +149,37 @@ export function AppSidebar({
                             Usman Biotracker
                         </span>
                     )}
+                    {isMobileWeb && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="ml-auto shrink-0"
+                            onClick={() => setMobileOpen(false)}
+                        >
+                            <X className="h-5 w-5" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
-            <ScrollArea className="flex-1 py-3">
-                {/* Compartment switcher */}
+            {/* Web: nav + footer stay together (footer under dashboards). Desktop: scroll + sticky footer. */}
+            {isWeb ? (
+                <div className="flex-1 overflow-y-auto py-3">
+                    {renderNav()}
+                    {footerControls}
+                </div>
+            ) : (
+                <>
+                    <ScrollArea className="flex-1 py-3">{renderNav()}</ScrollArea>
+                    {footerControls}
+                </>
+            )}
+        </>
+    );
+
+    function renderNav() {
+        return (
+            <>
                 <div className="px-2 space-y-1 mb-3">
                     {!collapsed && (
                         <p className="px-3 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
@@ -122,11 +195,13 @@ export function AppSidebar({
                                 collapsed ? 'px-2 justify-center' : 'px-4',
                                 activeCompartment === id && 'bg-secondary/50'
                             )}
-                            onClick={() => onCompartmentChange(id)}
+                            onClick={() => selectCompartment(id)}
                             title={collapsed ? label : undefined}
                         >
                             <Icon className="h-5 w-5 shrink-0" />
-                            {!collapsed && <span className="truncate flex-1 text-left">{label}</span>}
+                            {!collapsed && (
+                                <span className="truncate flex-1 text-left">{label}</span>
+                            )}
                         </Button>
                     ))}
                 </div>
@@ -165,7 +240,7 @@ export function AppSidebar({
                                             activeView === 'dashboard' &&
                                             'bg-secondary/50'
                                     )}
-                                    onClick={() => onDashboardSelect(dashboard.id)}
+                                    onClick={() => selectDashboard(dashboard.id)}
                                     title={collapsed ? dashboard.name : undefined}
                                 >
                                     <LayoutDashboard className="h-5 w-5 shrink-0" />
@@ -230,7 +305,6 @@ export function AppSidebar({
                     )}
                 </div>
 
-                {/* AI Chat — Recovery only */}
                 {activeCompartment === 'recovery' && (
                     <div className="px-2 mt-2 pt-2 border-t">
                         <Button
@@ -240,7 +314,10 @@ export function AppSidebar({
                                 collapsed ? 'px-2 justify-center' : 'px-4',
                                 activeView === 'chat-page' && 'bg-secondary/50'
                             )}
-                            onClick={onChatPageSelect}
+                            onClick={() => {
+                                onChatPageSelect?.();
+                                if (isMobileWeb) setMobileOpen(false);
+                            }}
                             title={collapsed ? 'AI Chat' : undefined}
                         >
                             <Sparkles className="h-5 w-5 shrink-0" />
@@ -250,25 +327,57 @@ export function AppSidebar({
                         </Button>
                     </div>
                 )}
-            </ScrollArea>
+            </>
+        );
+    }
 
-            <div className="p-2 border-t space-y-2">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-full"
-                    onClick={() => setCollapsed(!collapsed)}
-                >
-                    {collapsed ? (
-                        <ChevronRight className="h-4 w-4" />
-                    ) : (
-                        <ChevronLeft className="h-4 w-4" />
-                    )}
-                </Button>
-                <Button variant="ghost" size="icon" className="w-full" onClick={onSettingsClick}>
-                    <Settings className="h-5 w-5" />
-                </Button>
-            </div>
+    // Mobile web: hamburger + drawer overlay (Training iframe stays full-bleed when closed)
+    if (isMobileWeb) {
+        return (
+            <>
+                <div className="fixed top-3 left-3 z-40">
+                    <Button
+                        variant="secondary"
+                        size="icon"
+                        className="h-10 w-10 shadow-md"
+                        onClick={() => setMobileOpen(true)}
+                        title="Menu"
+                    >
+                        <Menu className="h-5 w-5" />
+                    </Button>
+                </div>
+                {mobileOpen && (
+                    <div className="fixed inset-0 z-50 flex">
+                        <button
+                            type="button"
+                            className="absolute inset-0 bg-black/50"
+                            aria-label="Close menu"
+                            onClick={() => setMobileOpen(false)}
+                        />
+                        <div
+                            className={cn(
+                                'relative z-10 flex h-full flex-col border-r bg-card shadow-xl',
+                                collapsed ? 'w-16' : 'w-[min(18rem,85vw)]',
+                                className
+                            )}
+                        >
+                            {sidebarInner}
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
+    return (
+        <div
+            className={cn(
+                'flex flex-col border-r bg-card',
+                collapsed ? 'w-16' : 'w-64',
+                className
+            )}
+        >
+            {sidebarInner}
         </div>
     );
 }

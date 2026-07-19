@@ -16,6 +16,7 @@ import {
     TRAINING_PAGES,
     trainingPathForId,
 } from '@/lib/trainingPages';
+import { isWebMirror } from '@/lib/webMirror';
 
 function DashboardApp() {
     const {
@@ -160,8 +161,9 @@ function DashboardApp() {
                     {/* Keep Hevy iframe mounted so data/auth survive compartment switches */}
                     <div
                         className={cn(
-                            'relative h-full min-h-[calc(100vh-4rem)] -m-6',
-                            isTraining ? '' : 'hidden'
+                            'relative h-full min-h-[calc(100vh-4rem)]',
+                            isTraining ? '' : 'hidden',
+                            !isWebMirror() && '-m-6'
                         )}
                     >
                         <HevyInsightsEmbed routePath={trainingRoutePath} />
