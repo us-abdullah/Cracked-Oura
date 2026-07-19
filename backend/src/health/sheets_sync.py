@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -21,8 +21,6 @@ from backend.src.health import service as health_service
 from backend.src.models_health import (
     SUPPLEMENT_BOOL_COLUMNS,
     SUPPLEMENT_SHEET_TO_ATTR,
-    HealthBloodwork,
-    HealthBodyMetrics,
     HealthSupplementLog,
 )
 
@@ -88,14 +86,24 @@ def ensure_sheet_defaults() -> Dict[str, Any]:
 
 def _fetch_text_once(url: str, timeout: int = 45) -> str:
     sep = "&" if "?" in url else "?"
-    busted = f"{url}{sep}_cb={uuid.uuid4().hex}"
+    # Multiple cache-bust params — Google's publish CDN is aggressive
+    busted = (
+        f"{url}{sep}_cb={uuid.uuid4().hex}"
+        f"&_t={int(time.time() * 1000)}"
+        f"&r={uuid.uuid4().hex[:8]}"
+    )
     req = urllib.request.Request(
         busted,
         headers={
-            "User-Agent": "UsmanBiotracker/1.0",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36 UsmanBiotracker/1.0"
+            ),
             "Accept": "text/tab-separated-values,text/csv,text/plain,*/*",
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
+            "Expires": "0",
         },
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -115,57 +123,6 @@ def _supplement_score(text: str) -> Tuple[int, int, int]:
             if str(r.get(col) or "").strip().upper() == "FALSE":
                 falses += 1
     return (notes, falses, len(rows))
-
-
-def _fetch_stable(url: str, attempts: int = 7, delay_s: float = 0.4) -> str:
-    """
-    Google published sheets return inconsistent CDN snapshots.
-    Prefer the newest sheet (most rows) so newly added days win.
-    Within a chosen size, prefer richest Notes + FALSE checkboxes so
-    checklist edits beat stale all-TRUE copies.
-    """
-    samples: List[str] = []
-    for i in range(max(1, attempts)):
-        samples.append(_fetch_text_once(url))
-        if i < attempts - 1:
-            time.sleep(delay_s)
-
-    scored = [(_supplement_score(t), t) for t in samples]
-    row_counts = [s[2] for s, _ in scored]
-    counts = Counter(row_counts)
-    max_rows = max(row_counts)
-    majority_rows, majority_n = counts.most_common(1)[0]
-
-    use_rows = max_rows
-    # Lone oversized snapshot that is poorer than a solid majority → CDN glitch
-    if (
-        counts[max_rows] == 1
-        and majority_n >= 3
-        and 0 < (max_rows - majority_rows) <= 3
-    ):
-        max_best = max(
-            (s for s, _ in scored if s[2] == max_rows),
-            key=lambda s: (s[0], s[1]),
-        )
-        maj_best = max(
-            (s for s, _ in scored if s[2] == majority_rows),
-            key=lambda s: (s[0], s[1]),
-        )
-        if max_best[0] <= maj_best[0] and max_best[1] < maj_best[1]:
-            use_rows = majority_rows
-
-    candidates = [(s, t) for s, t in scored if s[2] == use_rows]
-    if not candidates:
-        candidates = scored
-
-    _, best = max(candidates, key=lambda st: (st[0][0], st[0][1], st[0][2]))
-    logger.info(
-        "Sheet fetch row_counts=%s use_rows=%s picked=%s",
-        row_counts,
-        use_rows,
-        _supplement_score(best),
-    )
-    return best
 
 
 def parse_csv_rows(text: str) -> List[Dict[str, Any]]:
@@ -217,6 +174,126 @@ def parse_csv_rows(text: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _cell_bool_token(raw: Any) -> Optional[str]:
+    """Normalize sheet checkbox to TRUE / FALSE / None."""
+    b = health_service._parse_bool(raw)
+    if b is True:
+        return "TRUE"
+    if b is False:
+        return "FALSE"
+    return None
+
+
+def _fetch_supplement_consensus(
+    url: str, attempts: int = 11, delay_s: float = 0.45
+) -> List[Dict[str, Any]]:
+    """
+    Google 'Publish to web' returns inconsistent CDN snapshots for the same sheet
+    (same day can flip TRUE/FALSE across requests). Rebuild rows by majority vote
+    per date + column so Sync matches the live spreadsheet.
+    """
+    samples: List[List[Dict[str, Any]]] = []
+    for i in range(max(3, attempts)):
+        text = _fetch_text_once(url)
+        rows = parse_csv_rows(text)
+        if rows:
+            samples.append(rows)
+        if i < attempts - 1:
+            time.sleep(delay_s)
+
+    if not samples:
+        return []
+
+    # date_iso -> list of row dicts across samples
+    by_date: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    row_counts = [len(s) for s in samples]
+    max_rows = max(row_counts)
+    for rows in samples:
+        for r in rows:
+            d = health_service._parse_date(r.get("Date") or r.get("date"))
+            if not d:
+                continue
+            by_date[d.isoformat()].append(r)
+
+    # Include a date if it appears often enough, or in any max-size snapshot (new day)
+    min_appear = max(2, (len(samples) + 2) // 3)  # ~ceil(n/3) but at least 2
+    max_sample_dates = set()
+    for rows in samples:
+        if len(rows) < max_rows:
+            continue
+        for r in rows:
+            d = health_service._parse_date(r.get("Date") or r.get("date"))
+            if d:
+                max_sample_dates.add(d.isoformat())
+
+    kept_dates = sorted(
+        d
+        for d, rows in by_date.items()
+        if len(rows) >= min_appear or d in max_sample_dates
+    )
+
+    out: List[Dict[str, Any]] = []
+    for d_iso in kept_dates:
+        rows = by_date[d_iso]
+        rebuilt: Dict[str, Any] = {"Date": d_iso}
+
+        # Day name: most common non-empty
+        days = [str(r.get("Day") or r.get("day") or "").strip() for r in rows]
+        days = [x for x in days if x]
+        rebuilt["Day"] = Counter(days).most_common(1)[0][0] if days else ""
+
+        # Notes: prefer longest non-empty (avoid blank CDN winning)
+        notes = [
+            str(r.get("Notes") or r.get("notes") or "").strip() for r in rows
+        ]
+        notes = [n for n in notes if n]
+        rebuilt["Notes"] = max(notes, key=len) if notes else ""
+
+        for col in SUPPLEMENT_BOOL_COLUMNS:
+            votes = [_cell_bool_token(r.get(col)) for r in rows]
+            votes = [v for v in votes if v is not None]
+            if not votes:
+                rebuilt[col] = ""
+                continue
+            # Majority; ties → prefer FALSE (safer miss) then TRUE
+            tallies = Counter(votes)
+            best, _ = max(
+                tallies.items(),
+                key=lambda kv: (kv[1], 1 if kv[0] == "FALSE" else 0),
+            )
+            rebuilt[col] = best
+
+        out.append(rebuilt)
+
+    logger.info(
+        "Supplement consensus samples=%s row_counts=%s dates=%s min_appear=%s",
+        len(samples),
+        row_counts,
+        len(out),
+        min_appear,
+    )
+    return out
+
+
+def _fetch_stable(url: str, attempts: int = 7, delay_s: float = 0.4) -> str:
+    """Best single snapshot for body/bloodwork (smaller tables, less CDN flip)."""
+    samples: List[str] = []
+    for i in range(max(1, attempts)):
+        samples.append(_fetch_text_once(url))
+        if i < attempts - 1:
+            time.sleep(delay_s)
+
+    scored = [(_supplement_score(t), t) for t in samples]
+    # Prefer most rows, then most notes (body/blood use notes more than FALSEs)
+    _, best = max(scored, key=lambda st: (st[0][2], st[0][0], st[0][1]))
+    logger.info(
+        "Sheet fetch row_counts=%s picked=%s",
+        [s[2] for s, _ in scored],
+        _supplement_score(best),
+    )
+    return best
+
+
 def _db_supplement_fingerprint(db: Session) -> Dict[str, int]:
     rows = db.query(HealthSupplementLog).all()
     falses = 0
@@ -245,13 +322,9 @@ def _incoming_supplement_fingerprint(rows: List[Dict[str, Any]]) -> Dict[str, in
 def _looks_like_stale_all_green(
     incoming: Dict[str, int], current: Dict[str, int]
 ) -> bool:
-    """
-    Refuse only the classic CDN 'all TRUE again' regression.
-    Intentional deletes (fewer rows / cleared notes) are allowed.
-    """
+    """Refuse classic CDN 'all TRUE again' regression (background sync only)."""
     if current["rows"] < 10:
         return False
-    # Same-size (or larger) sheet but every miss vanished → stale all-green
     if (
         current["falses"] >= 5
         and incoming["falses"] == 0
@@ -261,8 +334,11 @@ def _looks_like_stale_all_green(
     return False
 
 
-def sync_all(db: Session) -> Dict[str, Any]:
-    """Fetch all configured sheet tables and upsert into SQLite."""
+def sync_all(db: Session, *, force: bool = False) -> Dict[str, Any]:
+    """Fetch all configured sheet tables and upsert into SQLite.
+
+    force=True (manual Sync button): skip soft stale-guards; always apply consensus.
+    """
     if not _sync_lock.acquire(blocking=False):
         meta = ensure_sheet_defaults()
         return {
@@ -280,12 +356,12 @@ def sync_all(db: Session) -> Dict[str, Any]:
         }
 
     try:
-        return _sync_all_unlocked(db)
+        return _sync_all_unlocked(db, force=force)
     finally:
         _sync_lock.release()
 
 
-def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
+def _sync_all_unlocked(db: Session, *, force: bool = False) -> Dict[str, Any]:
     meta = ensure_sheet_defaults()
     result: Dict[str, Any] = {
         "supplements": 0,
@@ -297,6 +373,7 @@ def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
         "notes_imported": 0,
         "errors": [],
         "skipped_stale": False,
+        "force": force,
     }
 
     jobs: List[Tuple[str, str, str]] = [
@@ -309,18 +386,25 @@ def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
         if not url or not str(url).strip():
             continue
         try:
-            text = _fetch_stable(_prefer_tsv(str(url).strip()))
-            rows = parse_csv_rows(text)
+            tsv_url = _prefer_tsv(str(url).strip())
 
-            # Guard: never wipe a full table from a totally empty fetch (CDN glitch)
             if sheet == "supplements":
+                # Consensus rebuild — handles CDN flipping checkboxes
+                attempts = 13 if force else 9
+                rows = _fetch_supplement_consensus(tsv_url, attempts=attempts)
                 incoming_fp = _incoming_supplement_fingerprint(rows)
                 current_fp = _db_supplement_fingerprint(db)
                 result["notes_imported"] = incoming_fp["notes"]
-                if _looks_like_stale_all_green(incoming_fp, current_fp):
+
+                if not rows:
+                    result["errors"].append("supplements: empty fetch")
+                    continue
+
+                if (not force) and _looks_like_stale_all_green(incoming_fp, current_fp):
                     result["skipped_stale"] = True
                     result["errors"].append(
-                        "Skipped stale Google publish snapshot (all-green regression). Try Sync again."
+                        "Skipped stale Google publish snapshot (all-green regression). "
+                        "Click Sync again in a minute."
                     )
                     logger.warning(
                         "Refusing stale supplements snapshot incoming=%s current=%s",
@@ -328,10 +412,10 @@ def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
                         current_fp,
                     )
                     continue
+
                 stats = health_service.upsert_supplement_rows(db, rows, replace=True)
                 result["supplements"] = stats["upserted"]
                 result["supplements_deleted"] = stats["deleted"]
-                # Helpful sync feedback for the UI
                 dated = []
                 for r in rows:
                     d = health_service._parse_date(r.get("Date") or r.get("date"))
@@ -340,21 +424,47 @@ def _sync_all_unlocked(db: Session) -> Dict[str, Any]:
                 dated.sort()
                 result["latest_dates"] = dated[-5:]
                 result["supplement_fingerprint"] = incoming_fp
-            elif sheet == "body":
-                stats = health_service.upsert_body_rows(db, rows, replace=True)
-                result["body"] = stats["upserted"]
-                result["body_deleted"] = stats["deleted"]
+                recent = []
+                by_iso = {}
+                for r in rows:
+                    d = health_service._parse_date(r.get("Date") or r.get("date"))
+                    if d:
+                        by_iso[d.isoformat()] = r
+                for d_iso in dated[-3:]:
+                    match = by_iso.get(d_iso)
+                    if not match:
+                        continue
+                    t = sum(
+                        1
+                        for c in SUPPLEMENT_BOOL_COLUMNS
+                        if str(match.get(c) or "").upper() == "TRUE"
+                    )
+                    f = sum(
+                        1
+                        for c in SUPPLEMENT_BOOL_COLUMNS
+                        if str(match.get(c) or "").upper() == "FALSE"
+                    )
+                    recent.append(f"{d_iso}: {t} taken / {f} missed")
+                result["recent_days"] = recent
             else:
-                stats = health_service.upsert_bloodwork_rows(db, rows, replace=True)
-                result["bloodwork"] = stats["upserted"]
-                result["bloodwork_deleted"] = stats["deleted"]
+                text = _fetch_stable(tsv_url, attempts=7 if force else 5)
+                rows = parse_csv_rows(text)
+                if sheet == "body":
+                    stats = health_service.upsert_body_rows(db, rows, replace=True)
+                    result["body"] = stats["upserted"]
+                    result["body_deleted"] = stats["deleted"]
+                else:
+                    stats = health_service.upsert_bloodwork_rows(db, rows, replace=True)
+                    result["bloodwork"] = stats["upserted"]
+                    result["bloodwork_deleted"] = stats["deleted"]
 
             logger.info(
-                "Sheets sync %s: upserted=%s deleted=%s notes=%s",
+                "Sheets sync %s: upserted=%s deleted=%s notes=%s force=%s",
                 key,
                 result.get(key),
                 result.get(f"{key}_deleted"),
                 result.get("notes_imported"),
+                force,
             )
         except urllib.error.HTTPError as e:
             msg = f"{key}: HTTP {e.code}"

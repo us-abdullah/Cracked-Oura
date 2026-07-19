@@ -166,8 +166,9 @@ async def save_sheets_config(body: SheetsConfigBody):
 
 @router.post("/sheets/sync")
 async def sync_sheets_now(db: Session = Depends(get_db)):
+    """Manual Sync — force=True skips soft CDN guards and uses deeper consensus."""
     try:
-        return sheets_sync.sync_all(db)
+        return sheets_sync.sync_all(db, force=True)
     except Exception as e:
         logger.exception("Sheets sync failed")
         raise HTTPException(status_code=400, detail=str(e))

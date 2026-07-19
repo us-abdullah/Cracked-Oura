@@ -412,10 +412,10 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                     <div className="space-y-3">
                         <h3 className="text-sm font-medium">Google Sheets (live)</h3>
                         <p className="text-sm text-muted-foreground">
-                            Your published sheets sync automatically every{' '}
-                            {sheetsInfo?.sync_minutes ?? 5} minutes. After you edit checkboxes or
-                            add a day in Google Sheets, wait about a minute for Google&apos;s publish
-                            cache, then hit Sync — the calendar % and colors should update.
+                            Sync pulls your <strong>published</strong> Google Sheet (not the live edit
+                            tab). After editing checkboxes or adding a day, wait ~1–2 minutes, then
+                            Sync. Tip: in Google Sheets use File → Share → Publish to web → enable
+                            &quot;Automatically republish when changes are made.&quot;
                         </p>
                         {sheetsInfo?.last_sync && (
                             <p className="text-xs text-muted-foreground">
@@ -442,10 +442,12 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                         );
                                     } else {
                                         const latest = (r.latest_dates || []).join(', ');
+                                        const recent = (r.recent_days || []).join(' · ');
                                         addLog(
                                             `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), notes ${r.notes_imported ?? 0}` +
-                                                (latest ? ` · latest days: ${latest}` : '')
+                                                (latest ? ` · latest: ${latest}` : '')
                                         );
+                                        if (recent) addLog(`Recent days → ${recent}`);
                                     }
                                     if (r.errors?.length) {
                                         setError(r.errors.join('; '));
