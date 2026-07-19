@@ -29,6 +29,20 @@ Uses fixtures + a Training placeholder. For Vercel without a cloud API, set `VIT
 
 ## Vercel
 
-1. Root Directory: `web`
-2. Build: `npm run build` · Output: `dist`
-3. For live phone data later, point `VITE_API_BASE` at a hosted API; until then use mock or keep viewing on LAN via the desktop backend.
+**Do not** set Root Directory to `frontend` — that builds the Electron desktop app and will fail.
+
+### Option A (recommended): Root Directory = `web`
+
+| Setting | Value |
+|--------|--------|
+| Root Directory | `web` |
+| Framework | Vite |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Install Command | `npm install` |
+
+### Option B: Root Directory = repo root (`.`)
+
+Uses the root `vercel.json` which builds `web/` automatically.
+
+Until you have a hosted API, add env var **`VITE_WEB_MOCK=1`** so the phone UI loads with demo data. For live data matching desktop, you’ll need a cloud backend later (or open the LAN URL while the desktop app is running).
