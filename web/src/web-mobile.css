@@ -61,6 +61,14 @@
     min-height: 11rem;
   }
 
+  /* Widget titles must stay under the hamburger drawer (titles use z-50+) */
+  .biotracker-web .web-mobile-stack .relative.z-\[50\],
+  .biotracker-web .web-mobile-stack .relative.z-\[60\],
+  .biotracker-web .web-mobile-stack .relative.z-\[70\],
+  .biotracker-web .web-mobile-stack .relative.z-\[100\] {
+    z-index: 1 !important;
+  }
+
   /* Hide desktop-only phone publish on tiny screens (use Update Phone Site.bat) */
   .biotracker-web .web-hide-on-mobile {
     display: none !important;

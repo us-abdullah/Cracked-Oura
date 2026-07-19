@@ -78,8 +78,14 @@ export function DashboardGrid({
             (!!widget.config.dateRange || supportsDateRange) &&
             widget.type !== 'table';
 
+        const isRadar = widget.type === 'radar';
+        const isHealthCal = widget.type === 'health_adherence_calendar';
         const minH = stacked
-            ? Math.max(200, Math.min(420, (layoutItem.h || 4) * 52))
+            ? isHealthCal
+                ? Math.max(560, (layoutItem.h || 8) * 56)
+                : isRadar
+                  ? Math.max(300, Math.min(440, (layoutItem.h || 5) * 56))
+                  : Math.max(200, Math.min(420, (layoutItem.h || 4) * 52))
             : undefined;
 
         return (
@@ -88,7 +94,11 @@ export function DashboardGrid({
                 className="relative group"
                 style={
                     stacked
-                        ? { minHeight: minH, height: minH }
+                        ? {
+                              minHeight: minH,
+                              height: isHealthCal ? 'auto' : minH,
+                              ...(isHealthCal ? { minHeight: minH } : {}),
+                          }
                         : {
                               gridColumn: `${(layoutItem.x || 0) + 1} / span ${layoutItem.w || 1}`,
                               gridRow: `${(layoutItem.y || 0) + 1} / span ${layoutItem.h || 1}`,
@@ -119,7 +129,12 @@ export function DashboardGrid({
                         )
                     }
                 >
-                    <div className="h-full pt-2 min-h-0 overflow-hidden">
+                    <div
+                        className={cn(
+                            'h-full pt-2 min-h-0',
+                            isRadar || isHealthCal ? 'overflow-visible' : 'overflow-hidden'
+                        )}
+                    >
                         <ErrorBoundary>
                             {renderWidget(
                                 widget,

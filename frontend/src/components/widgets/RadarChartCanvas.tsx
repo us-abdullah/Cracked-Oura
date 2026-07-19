@@ -60,6 +60,10 @@ export function RadarChartCanvas({ data, dataKey, axisKey = "subject", color = "
     const options: ChartOptions<'radar'> = {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            // Keep hexagon point labels from clipping at card edges
+            padding: { top: 8, right: 12, bottom: 16, left: 12 },
+        },
         animation: {
             duration: 0
         },
@@ -87,8 +91,9 @@ export function RadarChartCanvas({ data, dataKey, axisKey = "subject", color = "
                 pointLabels: {
                     color: isDark ? '#9ca3af' : '#6b7280',
                     font: {
-                        size: 11
-                    }
+                        size: 10
+                    },
+                    padding: 6,
                 },
                 ticks: {
                     display: false, // Hide radial ticks for cleaner look
@@ -102,7 +107,7 @@ export function RadarChartCanvas({ data, dataKey, axisKey = "subject", color = "
     };
 
     return (
-        <div className="w-full h-full min-h-[200px]">
+        <div className="w-full h-full min-h-[240px] pb-2">
             <Radar data={chartData} options={options} />
         </div>
     );

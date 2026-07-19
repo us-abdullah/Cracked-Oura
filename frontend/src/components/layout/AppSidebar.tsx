@@ -332,10 +332,11 @@ export function AppSidebar({
     }
 
     // Mobile web: hamburger + drawer overlay (Training iframe stays full-bleed when closed)
+    // z-[300+] so widget titles (z-50/60/100) never paint over the menu
     if (isMobileWeb) {
         return (
             <>
-                <div className="fixed top-3 left-3 z-40">
+                <div className="fixed top-3 left-3 z-[310]">
                     <Button
                         variant="secondary"
                         size="icon"
@@ -347,16 +348,16 @@ export function AppSidebar({
                     </Button>
                 </div>
                 {mobileOpen && (
-                    <div className="fixed inset-0 z-50 flex">
+                    <div className="fixed inset-0 z-[300] flex">
                         <button
                             type="button"
-                            className="absolute inset-0 bg-black/50"
+                            className="absolute inset-0 bg-black/60"
                             aria-label="Close menu"
                             onClick={() => setMobileOpen(false)}
                         />
                         <div
                             className={cn(
-                                'relative z-10 flex h-full flex-col border-r bg-card shadow-xl',
+                                'relative z-[301] flex h-full flex-col border-r bg-card shadow-xl',
                                 collapsed ? 'w-16' : 'w-[min(18rem,85vw)]',
                                 className
                             )}

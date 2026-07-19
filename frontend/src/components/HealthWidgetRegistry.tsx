@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TrendChartCanvas } from '@/components/widgets/TrendChartCanvas';
+import { useIsMobileWeb } from '@/lib/webMirror';
 
 interface Props {
     widget: WidgetInstance;
@@ -87,6 +88,7 @@ type DayRow = {
 };
 
 function AdherenceCalendar() {
+    const isMobileWeb = useIsMobileWeb();
     const [days, setDays] = useState<DayRow[]>([]);
     const [selected, setSelected] = useState<DayRow | null>(null);
     const [cursor, setCursor] = useState(() => new Date());
@@ -135,7 +137,12 @@ function AdherenceCalendar() {
     const monthLabel = format(cursor, 'MMMM yyyy');
 
     return (
-        <div className="h-full flex flex-col gap-3 p-2 min-h-0">
+        <div
+            className={cn(
+                'h-full flex flex-col min-h-0',
+                isMobileWeb ? 'gap-4 p-1' : 'gap-3 p-2'
+            )}
+        >
             <div className="flex items-center justify-between gap-2 shrink-0">
                 <Button
                     variant="outline"
@@ -156,15 +163,25 @@ function AdherenceCalendar() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-[11px] text-muted-foreground text-center shrink-0">
+            <div
+                className={cn(
+                    'grid grid-cols-7 text-muted-foreground text-center shrink-0',
+                    isMobileWeb ? 'gap-2 text-[10px]' : 'gap-1 text-[11px]'
+                )}
+            >
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                    <div key={d} className="py-1 font-medium">
+                    <div key={d} className={cn('font-medium', isMobileWeb ? 'py-1.5' : 'py-1')}>
                         {d}
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1.5 flex-1 min-h-0 auto-rows-fr">
+            <div
+                className={cn(
+                    'grid grid-cols-7 flex-1 min-h-0',
+                    isMobileWeb ? 'gap-2.5 auto-rows-[minmax(3.75rem,1fr)]' : 'gap-1.5 auto-rows-fr'
+                )}
+            >
                 {cells.map((day) => {
                     const key = format(day, 'yyyy-MM-dd');
                     const row = byDate.get(key);
@@ -197,7 +214,8 @@ function AdherenceCalendar() {
                             disabled={!row}
                             onClick={() => row && setSelected(row)}
                             className={cn(
-                                'relative rounded-lg border text-left p-1.5 transition-colors flex flex-col justify-between min-h-[52px]',
+                                'relative rounded-lg border text-left transition-colors flex flex-col justify-between',
+                                isMobileWeb ? 'p-2 min-h-[3.75rem]' : 'p-1.5 min-h-[52px]',
                                 inMonth
                                     ? 'border-border/60 bg-card/40'
                                     : 'border-transparent bg-transparent opacity-35',
@@ -211,7 +229,8 @@ function AdherenceCalendar() {
                         >
                             <span
                                 className={cn(
-                                    'text-xs font-medium',
+                                    'font-medium',
+                                    isMobileWeb ? 'text-[13px]' : 'text-xs',
                                     inMonth ? 'text-foreground' : 'text-muted-foreground'
                                 )}
                             >
@@ -230,7 +249,14 @@ function AdherenceCalendar() {
                 })}
             </div>
 
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0 px-0.5">
+            <div
+                className={cn(
+                    'flex text-muted-foreground shrink-0 px-0.5',
+                    isMobileWeb
+                        ? 'flex-col gap-1.5 text-[11px]'
+                        : 'items-center gap-3 text-[10px]'
+                )}
+            >
                 <span className="inline-flex items-center gap-1">
                     <span className="h-2 w-2 rounded-full bg-emerald-500" /> Core stack complete
                 </span>
@@ -244,7 +270,14 @@ function AdherenceCalendar() {
             </div>
 
             {selected && (
-                <div className="border-t pt-3 shrink-0 max-h-[38%] overflow-auto">
+                <div
+                    className={cn(
+                        'border-t pt-3',
+                        isMobileWeb
+                            ? 'shrink-0 max-h-none overflow-visible'
+                            : 'shrink-0 max-h-[38%] overflow-auto'
+                    )}
+                >
                     <div className="flex items-baseline justify-between gap-2 mb-2">
                         <p className="text-sm font-medium">
                             {format(parseISO(selected.date), 'EEEE, MMM d')}
@@ -253,12 +286,20 @@ function AdherenceCalendar() {
                             {selected.pct}% taken
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div
+                        className={cn(
+                            'flex flex-wrap',
+                            isMobileWeb ? 'gap-2' : 'gap-1.5'
+                        )}
+                    >
                         {Object.entries(selected.taken || {}).map(([name, v]) => (
                             <span
                                 key={name}
                                 className={cn(
-                                    'text-[11px] px-2 py-0.5 rounded-md border',
+                                    'rounded-md border',
+                                    isMobileWeb
+                                        ? 'text-xs px-2.5 py-1'
+                                        : 'text-[11px] px-2 py-0.5',
                                     v === 1
                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
                                         : v === 0
