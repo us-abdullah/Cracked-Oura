@@ -1,19 +1,64 @@
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopSrc = path.resolve(__dirname, '../frontend/src');
-const webReact = path.resolve(__dirname, './node_modules/react');
-const webReactDom = path.resolve(__dirname, './node_modules/react-dom');
+const webNm = path.resolve(__dirname, 'node_modules');
+const webReact = path.resolve(webNm, 'react');
+const webReactDom = path.resolve(webNm, 'react-dom');
+
+/**
+ * Shared frontend/src imports resolve packages from frontend/node_modules,
+ * which does not exist on Vercel (only web/ is installed). Re-resolve bare
+ * imports from desktop source against web/node_modules instead.
+ */
+function resolveDesktopDepsFromWeb(): Plugin {
+  return {
+    name: 'resolve-desktop-deps-from-web',
+    async resolveId(id, importer, options) {
+      if (!importer) return null;
+      const norm = importer.replace(/\\/g, '/');
+      if (!norm.includes('/frontend/src/')) return null;
+      // Relative / virtual / already-aliased @/ paths: leave alone
+      if (
+        id.startsWith('\0') ||
+        id.startsWith('.') ||
+        id.startsWith('/') ||
+        id.startsWith('@/') ||
+        path.isAbsolute(id)
+      ) {
+        return null;
+      }
+      return this.resolve(id, path.join(__dirname, 'index.html'), {
+        ...options,
+        skipSelf: true,
+      });
+    },
+  };
+}
+
+/** Pin every runtime dependency to web/node_modules (belt + suspenders). */
+function dependencyAliases() {
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')
+  ) as { dependencies?: Record<string, string> };
+  const names = Object.keys(pkg.dependencies || {}).filter(
+    (n) => n !== 'react' && n !== 'react-dom'
+  );
+  return names.map((name) => ({
+    find: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+    replacement: path.resolve(webNm, name),
+  }));
+}
 
 /**
  * Visual mirror of the desktop app.
  * - `@` → frontend/src (same UI — desktop edits auto-appear here)
- * - Default: live desktop backend at :8000 (real Recovery / Health / Hevy)
- * - Optional: VITE_WEB_MOCK=1 for offline demo fixtures (Vercel without API)
- * - React deduped to one copy (shared src across folders)
+ * - Default: live desktop backend at :8000
+ * - Optional: VITE_WEB_MOCK=1 for offline demo fixtures
  */
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
@@ -44,10 +89,11 @@ export default defineConfig(({ mode }) => {
     },
     { find: 'react/jsx-runtime', replacement: path.resolve(webReact, 'jsx-runtime.js') },
     { find: 'react', replacement: webReact },
+    ...dependencyAliases(),
   ];
 
   return {
-    plugins: [react()],
+    plugins: [resolveDesktopDepsFromWeb(), react()],
     resolve: {
       dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
       alias,
@@ -58,6 +104,11 @@ export default defineConfig(({ mode }) => {
         'react-dom',
         'react/jsx-runtime',
         'react/jsx-dev-runtime',
+        'lucide-react',
+        'date-fns',
+        'chart.js',
+        'recharts',
+        'react-grid-layout',
         '@radix-ui/react-scroll-area',
         '@radix-ui/react-dialog',
         '@radix-ui/react-dropdown-menu',
@@ -86,6 +137,10 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       emptyOutDir: true,
+      // Ensure CSS from shared frontend is scanned (tailwind content already set)
+      commonjsOptions: {
+        include: [/node_modules/],
+      },
     },
   };
 });
