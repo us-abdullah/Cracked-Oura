@@ -292,7 +292,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
     };
 
     const phoneSiteSection = (
-        <div className="space-y-3 border-t pt-4">
+        <div className="space-y-3 rounded-lg border border-violet-500/30 bg-violet-500/5 p-4">
             <h3 className="text-sm font-medium flex items-center gap-2">
                 <Smartphone className="h-4 w-4" />
                 Phone site (Vercel)
@@ -300,7 +300,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
             <p className="text-sm text-muted-foreground">
                 Exports your latest desktop data and pushes it so the phone website updates.
                 Keep this app open while it runs (~1–2 min). Or double-click{' '}
-                <code className="text-xs">scripts\Update-Phone-Site.bat</code> in the repo.
+                <code className="text-xs">Update Phone Site</code> on your Desktop.
             </p>
             <Button
                 onClick={handlePublishPhoneSite}
@@ -457,6 +457,8 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                         </Alert>
                     )}
 
+                    {phoneSiteSection}
+
                     <div className="space-y-3">
                         <h3 className="text-sm font-medium">Google Sheets (live)</h3>
                         <p className="text-sm text-muted-foreground">
@@ -515,8 +517,6 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                             Sync from Google Sheets now
                         </Button>
                     </div>
-
-                    {phoneSiteSection}
 
                     <div className="space-y-2 border-t pt-4">
                         <Label>Manual CSV import (optional)</Label>

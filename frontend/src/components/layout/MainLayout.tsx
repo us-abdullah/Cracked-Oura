@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import type { Dashboard, CompartmentId } from '@/types';
 import { ModeToggle } from '@/components/mode-toggle';
+import { UpdatePhoneButton } from '@/components/UpdatePhoneButton';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -151,6 +152,7 @@ export function MainLayout({
 
                     <div className="flex items-center gap-2">
                         {headerActions}
+                        <UpdatePhoneButton />
                         <ModeToggle />
                         {showRecoveryChrome && (
                             <Button
