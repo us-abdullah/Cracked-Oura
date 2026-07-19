@@ -1,4 +1,8 @@
-const BASE_URL = 'http://localhost:8000';
+/** API origin. Desktop Electron uses localhost:8000; web can override via VITE_API_BASE. */
+const BASE_URL =
+    (typeof import.meta !== 'undefined' &&
+        (import.meta as any).env?.VITE_API_BASE) ||
+    'http://localhost:8000';
 
 export interface AutomationStatusResponse {
     status: 'idle' | 'login_needed' | 'otp_needed' | 'logged_in' | 'exporting' | 'ready_to_download' | 'downloading' | 'completed' | 'error';

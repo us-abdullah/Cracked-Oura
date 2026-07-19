@@ -13,7 +13,9 @@
     "build:backend": "node ../scripts/build-backend.js",
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && npm run build:backend && tsc -b && vite build && tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', JSON.stringify({type:'commonjs'}))\" && electron-builder --win",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "web:dev": "npm --prefix ../web run dev",
+    "web:build": "npm --prefix ../web run build"
   },
   "build": {
     "extraResources": [
