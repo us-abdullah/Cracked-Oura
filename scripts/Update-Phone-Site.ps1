@@ -12,7 +12,7 @@ $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $RepoRoot
 
 Write-Host ""
-Write-Host "=== Usman Biotracker → Phone site update ===" -ForegroundColor Cyan
+Write-Host "=== Usman Biotracker - Phone site update ===" -ForegroundColor Cyan
 Write-Host "Repo: $RepoRoot"
 Write-Host ""
 
@@ -44,7 +44,7 @@ Write-Host "[3/4] Committing snapshot ..."
 git add -- "web/public/mirror-snapshot.json"
 $changed = git status --porcelain -- "web/public/mirror-snapshot.json"
 if (-not $changed) {
-    Write-Host "      Snapshot unchanged — nothing to push." -ForegroundColor Yellow
+    Write-Host "      Snapshot unchanged - nothing to push." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Phone site is already up to date."
     exit 0
@@ -61,5 +61,5 @@ git push
 if ($LASTEXITCODE -ne 0) { throw "git push failed" }
 
 Write-Host ""
-Write-Host "Done. Wait ~1 minute for Vercel, then hard-refresh the phone site." -ForegroundColor Green
+Write-Host "Done. Wait about 1 minute for Vercel, then hard-refresh the phone site." -ForegroundColor Green
 Write-Host ""
