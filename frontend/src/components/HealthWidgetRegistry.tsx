@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { WidgetInstance } from '@/types';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,36 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { TrendChartCanvas } from '@/components/widgets/TrendChartCanvas';
 import { useIsMobileWeb } from '@/lib/webMirror';
+
+/** Shared month for adherence calendar ↔ per-supplement rates. */
+const healthMonthListeners = new Set<() => void>();
+let healthCalendarMonth = startOfMonth(new Date());
+
+function getHealthCalendarMonth() {
+    return healthCalendarMonth;
+}
+
+function setHealthCalendarMonth(d: Date) {
+    const next = startOfMonth(d);
+    if (next.getTime() === healthCalendarMonth.getTime()) return;
+    healthCalendarMonth = next;
+    healthMonthListeners.forEach((l) => l());
+}
+
+function subscribeHealthCalendarMonth(cb: () => void) {
+    healthMonthListeners.add(cb);
+    return () => {
+        healthMonthListeners.delete(cb);
+    };
+}
+
+function useHealthCalendarMonth() {
+    return useSyncExternalStore(
+        subscribeHealthCalendarMonth,
+        getHealthCalendarMonth,
+        getHealthCalendarMonth
+    );
+}
 
 interface Props {
     widget: WidgetInstance;
@@ -87,11 +117,40 @@ type DayRow = {
     notes?: string;
 };
 
+function ratesForMonth(days: DayRow[], month: Date) {
+    // Compare YYYY-MM strings to avoid UTC parseISO timezone shifting day-of-month
+    const prefix = format(month, 'yyyy-MM');
+    const inMonth = days.filter((d) => typeof d.date === 'string' && d.date.startsWith(prefix));
+    const names = new Set<string>();
+    for (const d of inMonth) {
+        for (const k of Object.keys(d.taken || {})) names.add(k);
+    }
+    const rates: { name: string; pct: number | null; taken: number; total: number }[] = [];
+    for (const name of names) {
+        let taken = 0;
+        let total = 0;
+        for (const d of inMonth) {
+            const v = d.taken?.[name];
+            if (v === null || v === undefined) continue;
+            total += 1;
+            if (v === 1) taken += 1;
+        }
+        rates.push({
+            name,
+            pct: total ? Math.round((taken / total) * 1000) / 10 : null,
+            taken,
+            total,
+        });
+    }
+    rates.sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
+    return rates;
+}
+
 function AdherenceCalendar() {
     const isMobileWeb = useIsMobileWeb();
     const [days, setDays] = useState<DayRow[]>([]);
     const [selected, setSelected] = useState<DayRow | null>(null);
-    const [cursor, setCursor] = useState(() => new Date());
+    const cursor = useHealthCalendarMonth();
     const cursorInit = useMemo(() => ({ done: false }), []);
 
     const load = useMemo(
@@ -109,7 +168,7 @@ function AdherenceCalendar() {
             if (rows.length && !cursorInit.done) {
                 cursorInit.done = true;
                 try {
-                    setCursor(parseISO(rows[rows.length - 1].date));
+                    setHealthCalendarMonth(parseISO(rows[rows.length - 1].date + 'T12:00:00'));
                 } catch {
                     /* ignore */
                 }
@@ -148,7 +207,7 @@ function AdherenceCalendar() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setCursor((c) => subMonths(c, 1))}
+                    onClick={() => setHealthCalendarMonth(subMonths(cursor, 1))}
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -157,7 +216,7 @@ function AdherenceCalendar() {
                     variant="outline"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => setCursor((c) => addMonths(c, 1))}
+                    onClick={() => setHealthCalendarMonth(addMonths(cursor, 1))}
                 >
                     <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -330,22 +389,60 @@ function AdherenceCalendar() {
 }
 
 function AdherenceRates() {
-    const [rates, setRates] = useState<any[]>([]);
+    const month = useHealthCalendarMonth();
+    const [days, setDays] = useState<DayRow[]>([]);
     const load = useMemo(
         () => async () => {
-            setRates(await api.healthRates());
+            setDays(await api.healthCalendar());
         },
         []
     );
     useHealthLiveReload(load);
+
+    const rates = useMemo(() => ratesForMonth(days, month), [days, month]);
+    const monthLabel = format(month, 'MMMM yyyy');
+
     return (
         <div className="h-full overflow-auto text-sm p-1 space-y-2">
+            <div className="flex items-center justify-between gap-1 px-0.5 pb-1">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setHealthCalendarMonth(subMonths(month, 1))}
+                    aria-label="Previous month"
+                >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center">
+                    {monthLabel}
+                </p>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setHealthCalendarMonth(addMonths(month, 1))}
+                    aria-label="Next month"
+                >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+            {rates.length === 0 && (
+                <p className="text-xs text-muted-foreground px-0.5">
+                    No tracked supplements in {monthLabel}.
+                </p>
+            )}
             {rates.map((r) => (
                 <div key={r.name}>
                     <div className="flex justify-between text-xs mb-0.5">
                         <span className="truncate pr-2">{r.name}</span>
-                        <span className="text-muted-foreground shrink-0">
+                        <span className="text-muted-foreground shrink-0 tabular-nums">
                             {r.pct != null ? `${r.pct}%` : '—'}
+                            {r.total > 0 ? (
+                                <span className="ml-1 opacity-60 text-[10px]">
+                                    {r.taken}/{r.total}
+                                </span>
+                            ) : null}
                         </span>
                     </div>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
