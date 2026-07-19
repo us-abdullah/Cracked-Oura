@@ -5,9 +5,16 @@
     <link rel="icon" type="image/png" href="/hevy-insights/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Hevy Insights</title>
-    <!-- Snapshot API shim must run before Vue/axios -->
+    <!-- Seed snapshot into localStorage BEFORE Vue boots -->
     <script src="/hevy-insights/hi-snapshot-shim.js"></script>
-    <script type="module" crossorigin src="/hevy-insights/assets/index-DT6cdMhq.js"></script>
+    <script type="module">
+      try {
+        await window.__HI_SNAPSHOT_READY__;
+      } catch (e) {
+        console.error('Snapshot bootstrap failed', e);
+      }
+      await import('/hevy-insights/assets/index-DT6cdMhq.js');
+    </script>
     <link rel="stylesheet" crossorigin href="/hevy-insights/assets/index-CB7qaXCS.css">
   </head>
   <body>
