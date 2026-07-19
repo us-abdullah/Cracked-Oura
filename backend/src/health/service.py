@@ -154,8 +154,14 @@ def upsert_supplement_rows(
         existing = db.get(HealthSupplementLog, obj.date)
         if existing:
             for sheet_col, attr in SUPPLEMENT_SHEET_TO_ATTR.items():
-                setattr(existing, attr, getattr(obj, attr))
+                new_val = getattr(obj, attr)
+                # Blank sheet cell → None. Keep prior value so a partial/bad parse
+                # doesn't wipe checkboxes; explicit TRUE/FALSE always overwrite.
+                if new_val is None and getattr(existing, attr) is not None:
+                    continue
+                setattr(existing, attr, new_val)
             existing.day = obj.day
+            # Notes: empty string from sheet clears the note (explicit clear)
             existing.notes = obj.notes
         else:
             db.add(obj)

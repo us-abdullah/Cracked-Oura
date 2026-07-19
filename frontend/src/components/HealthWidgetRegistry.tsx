@@ -232,14 +232,15 @@ function AdherenceCalendar() {
 
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0 px-0.5">
                 <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> ≥85%
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Core stack complete
                 </span>
                 <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-amber-500" /> 50–84%
+                    <span className="h-2 w-2 rounded-full bg-amber-500" /> Core ≥50%
                 </span>
                 <span className="inline-flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-rose-500" /> &lt;50%
+                    <span className="h-2 w-2 rounded-full bg-rose-500" /> Core &lt;50%
                 </span>
+                <span className="opacity-70">% = all supplements</span>
             </div>
 
             {selected && (

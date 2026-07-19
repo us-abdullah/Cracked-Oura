@@ -413,8 +413,9 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                         <h3 className="text-sm font-medium">Google Sheets (live)</h3>
                         <p className="text-sm text-muted-foreground">
                             Sync pulls your <strong>published</strong> Google Sheet (not the live edit
-                            tab). After editing checkboxes or adding a day, wait ~1–2 minutes, then
-                            Sync. Tip: in Google Sheets use File → Share → Publish to web → enable
+                            tab). After adding/deleting rows or changing checks, wait 1–2 minutes for
+                            Google to republish, then Sync. Deleted rows only clear here once the
+                            published feed drops them. Tip: File → Share → Publish to web → enable
                             &quot;Automatically republish when changes are made.&quot;
                         </p>
                         {sheetsInfo?.last_sync && (
@@ -438,7 +439,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                         addLog('Sync already running — wait a moment.');
                                     } else if (r.skipped_stale) {
                                         addLog(
-                                            `Kept current data (Google returned a stale snapshot). Try again in ~1 min after editing the sheet.`
+                                            `Kept current data — Google publish CDN still stale. Wait ~30s after editing, then Sync again.`
                                         );
                                     } else {
                                         const latest = (r.latest_dates || []).join(', ');
