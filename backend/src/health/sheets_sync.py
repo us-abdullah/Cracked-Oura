@@ -40,6 +40,7 @@ DEFAULT_SHEET_URLS = {
     "supplements": f"{SHEETS_PUB_BASE}?gid=0&single=true&output=tsv",
     "body": f"{SHEETS_PUB_BASE}?gid=217251520&single=true&output=tsv",
     "bloodwork": f"{SHEETS_PUB_BASE}?gid=241453671&single=true&output=tsv",
+    "nutrition": f"{SHEETS_PUB_BASE}?gid=123456789&single=true&output=tsv",
 }
 
 
@@ -63,6 +64,7 @@ def ensure_sheet_defaults() -> Dict[str, Any]:
         "health_sheets_supplements_url": DEFAULT_SHEET_URLS["supplements"],
         "health_sheets_body_url": DEFAULT_SHEET_URLS["body"],
         "health_sheets_bloodwork_url": DEFAULT_SHEET_URLS["bloodwork"],
+        "health_sheets_nutrition_url": DEFAULT_SHEET_URLS["nutrition"],
     }
     for key, default in mapping.items():
         current = cfg.get(key) or ""
@@ -78,6 +80,7 @@ def ensure_sheet_defaults() -> Dict[str, Any]:
         "supplements_url": cfg.get("health_sheets_supplements_url") or "",
         "body_url": cfg.get("health_sheets_body_url") or "",
         "bloodwork_url": cfg.get("health_sheets_bloodwork_url") or "",
+        "nutrition_url": cfg.get("health_sheets_nutrition_url") or "",
         "sync_minutes": int(cfg.get("health_sheets_sync_minutes") or 5),
         "last_sync": cfg.get("health_sheets_last_sync"),
         "last_status": cfg.get("health_sheets_last_status"),
@@ -127,7 +130,13 @@ def _supplement_score(text: str) -> Tuple[int, int, int]:
 
 
 def parse_csv_rows(text: str) -> List[Dict[str, Any]]:
-    """Parse CSV or TSV. Finds Date header; merges overflow cells into Notes."""
+    """Parse CSV or TSV. Finds Date header; merges overflow cells into Notes.
+
+    Tolerates:
+    - Renamed first header cell (e.g. email typed over \"Date\") when Day + supplements present
+    - Leading blank columns (macro sheet publishes `\\tDate\\tCalories...`)
+    - Title/summary rows above the real header
+    """
     if not text or not str(text).strip():
         return []
 
@@ -138,24 +147,86 @@ def parse_csv_rows(text: str) -> List[Dict[str, Any]]:
     grid = [list(r) for r in csv.reader(io.StringIO(sample), delimiter=delimiter)]
     header_idx = None
     headers: List[str] = []
+    date_offset = 0
+    supp_names_lower = {c.lower() for c in SUPPLEMENT_BOOL_COLUMNS}
+    nutrition_names_lower = {
+        "calories",
+        "protein",
+        "carbs",
+        "fat",
+        "fiber",
+        "sugar",
+        "water",
+    }
+
     for i, row in enumerate(grid):
         if not row:
             continue
-        first = str(row[0]).strip().strip('"').lower()
-        if first == "date":
-            headers = [str(h or "").strip() for h in row]
-            while headers and not headers[-1]:
-                headers.pop()
+        cells = [str(h or "").strip().strip('"') for h in row]
+        while cells and not cells[-1]:
+            cells.pop()
+        if not cells:
+            continue
+
+        lowered = [c.lower() for c in cells]
+        date_at = next((j for j, c in enumerate(lowered) if c == "date"), None)
+
+        def _nutr_hit(label: str) -> bool:
+            # "water (oz)", "protein (g)", etc.
+            if label in nutrition_names_lower:
+                return True
+            return any(
+                label.startswith(n + " ") or label.startswith(n + "(")
+                for n in nutrition_names_lower
+            )
+
+        is_header = date_at is not None and date_at == 0
+
+        # Date not in col A — still a header if Date appears with macros or Day+supplements
+        if date_at is not None and not is_header:
+            has_day = "day" in lowered
+            supp_hits = sum(1 for c in lowered if c in supp_names_lower)
+            nutr_hits = sum(1 for c in lowered if _nutr_hit(c))
+            if has_day and supp_hits >= 3:
+                is_header = True
+            elif nutr_hits >= 3:
+                is_header = True
+
+        # Email/name overwrote Date but Day + supplements remain
+        if not is_header and len(cells) >= 4:
+            has_day = "day" in lowered
+            supp_hits = sum(1 for c in lowered if c in supp_names_lower)
+            if has_day and supp_hits >= 3:
+                is_header = True
+                cells[0] = "Date"
+                date_at = 0
+
+        if is_header:
+            offset = int(date_at or 0)
+            if offset > 0:
+                cells = cells[offset:]
+            elif cells and cells[0].lower() != "date":
+                cells[0] = "Date"
+            headers = cells
             header_idx = i
+            date_offset = offset
             break
+
     if header_idx is None or not headers:
         return []
+
+    if headers[0].lower() != "date":
+        headers[0] = "Date"
 
     out: List[Dict[str, Any]] = []
     for row in grid[header_idx + 1 :]:
         if not row or not any(str(c).strip() for c in row if c is not None):
             continue
         values = [("" if c is None else str(c)).strip() for c in row]
+        if date_offset > 0:
+            if len(values) <= date_offset:
+                continue
+            values = values[date_offset:]
         if len(values) > len(headers):
             head = values[: len(headers) - 1]
             overflow = values[len(headers) - 1 :]
@@ -170,6 +241,11 @@ def parse_csv_rows(text: str) -> List[Dict[str, Any]]:
                 continue
             cleaned[h] = v
         if not any(str(v).strip() for v in cleaned.values()):
+            continue
+        date_cell = str(cleaned.get("Date") or "").strip()
+        if not date_cell or date_cell.lower() in ("date", "calories", "protein"):
+            continue
+        if str(cleaned.get("Day") or "").strip().lower() == "day":
             continue
         out.append(cleaned)
     return out
@@ -389,9 +465,11 @@ def sync_all(db: Session, *, force: bool = False) -> Dict[str, Any]:
             "supplements": 0,
             "body": 0,
             "bloodwork": 0,
+            "nutrition": 0,
             "supplements_deleted": 0,
             "body_deleted": 0,
             "bloodwork_deleted": 0,
+            "nutrition_deleted": 0,
             "notes_imported": 0,
             "errors": ["Sync already in progress — wait for it to finish."],
             "status": "busy",
@@ -411,9 +489,11 @@ def _sync_all_unlocked(db: Session, *, force: bool = False) -> Dict[str, Any]:
         "supplements": 0,
         "body": 0,
         "bloodwork": 0,
+        "nutrition": 0,
         "supplements_deleted": 0,
         "body_deleted": 0,
         "bloodwork_deleted": 0,
+        "nutrition_deleted": 0,
         "notes_imported": 0,
         "errors": [],
         "skipped_stale": False,
@@ -425,6 +505,7 @@ def _sync_all_unlocked(db: Session, *, force: bool = False) -> Dict[str, Any]:
         ("supplements", meta["supplements_url"], "supplements"),
         ("body", meta["body_url"], "body"),
         ("bloodwork", meta["bloodwork_url"], "bloodwork"),
+        ("nutrition", meta["nutrition_url"], "nutrition"),
     ]
 
     for key, url, sheet in jobs:
@@ -515,6 +596,11 @@ def _sync_all_unlocked(db: Session, *, force: bool = False) -> Dict[str, Any]:
                     result["body"] = stats["upserted"]
                     result["body_deleted"] = stats["deleted"]
                     result["applied"] = True
+                elif sheet == "nutrition":
+                    stats = health_service.upsert_nutrition_rows(db, rows, replace=True)
+                    result["nutrition"] = stats["upserted"]
+                    result["nutrition_deleted"] = stats["deleted"]
+                    result["applied"] = True
                 else:
                     stats = health_service.upsert_bloodwork_rows(db, rows, replace=True)
                     result["bloodwork"] = stats["upserted"]
@@ -558,10 +644,12 @@ def _sync_all_unlocked(db: Session, *, force: bool = False) -> Dict[str, Any]:
                 "supplements": result["supplements"],
                 "body": result["body"],
                 "bloodwork": result["bloodwork"],
+                "nutrition": result["nutrition"],
                 "notes_imported": result["notes_imported"],
                 "supplements_deleted": result["supplements_deleted"],
                 "body_deleted": result["body_deleted"],
                 "bloodwork_deleted": result["bloodwork_deleted"],
+                "nutrition_deleted": result["nutrition_deleted"],
             },
         )
         result["last_sync"] = now

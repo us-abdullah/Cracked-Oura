@@ -12,10 +12,15 @@ from sqlalchemy.orm import Session
 
 from backend.src.models_health import (
     CORE_COLOR_SUPPLEMENTS,
+    NUTRITION_CALORIES_TARGET,
+    NUTRITION_PROTEIN_OK_G,
+    NUTRITION_PROTEIN_TARGET_G,
+    NUTRITION_SHEET_TO_ATTR,
     SUPPLEMENT_BOOL_COLUMNS,
     SUPPLEMENT_SHEET_TO_ATTR,
     HealthBloodwork,
     HealthBodyMetrics,
+    HealthNutritionLog,
     HealthSupplementLog,
 )
 
@@ -364,8 +369,18 @@ def adherence_calendar(db: Session) -> List[Dict[str, Any]]:
     return out
 
 
-def adherence_rates(db: Session) -> List[Dict[str, Any]]:
-    rows = db.query(HealthSupplementLog).all()
+def adherence_rates(
+    db: Session, year: int | None = None, month: int | None = None
+) -> List[Dict[str, Any]]:
+    q = db.query(HealthSupplementLog)
+    if year is not None and month is not None:
+        from sqlalchemy import extract
+
+        q = q.filter(
+            extract("year", HealthSupplementLog.date) == year,
+            extract("month", HealthSupplementLog.date) == month,
+        )
+    rows = q.all()
     rates = []
     for sheet_col, attr in SUPPLEMENT_SHEET_TO_ATTR.items():
         tracked = [getattr(r, attr) for r in rows if getattr(r, attr) is not None]
@@ -424,6 +439,18 @@ def notes_feed(db: Session) -> List[Dict[str, Any]]:
                     "date": r.date.isoformat(),
                     "notes": str(r.notes).strip(),
                     "source": "bloodwork",
+                }
+            )
+
+    for r in (
+        db.query(HealthNutritionLog).filter(HealthNutritionLog.notes.isnot(None)).all()
+    ):
+        if r.notes and str(r.notes).strip():
+            items.append(
+                {
+                    "date": r.date.isoformat(),
+                    "notes": str(r.notes).strip(),
+                    "source": "nutrition",
                 }
             )
 
@@ -510,4 +537,188 @@ def bloodwork_series(db: Session) -> List[Dict[str, Any]]:
 def bloodwork_latest(db: Session) -> Optional[Dict[str, Any]]:
     series = bloodwork_series(db)
     return series[-1] if series else None
+
+
+def _nutrition_row_value(row: Dict[str, Any], sheet_col: str, attr: str) -> Any:
+    """Read a macro cell; tolerate headers like 'Water (oz)' or 'Protein (g)'."""
+    if sheet_col in row:
+        return row.get(sheet_col)
+    if attr in row:
+        return row.get(attr)
+    target = sheet_col.lower()
+    for key, val in row.items():
+        low = str(key or "").strip().lower()
+        if not low:
+            continue
+        if low == target or low == attr:
+            return val
+        # "Water (oz)", "Protein g", "Calories (kcal)"
+        if low.startswith(target + " ") or low.startswith(target + "("):
+            return val
+        if low.startswith(attr + " ") or low.startswith(attr + "("):
+            return val
+    return None
+
+
+def upsert_nutrition_rows(
+    db: Session, rows: List[Dict[str, Any]], *, replace: bool = False
+) -> Dict[str, int]:
+    count = 0
+    incoming_dates = set()
+    for row in rows:
+        d = _parse_date(row.get("Date") or row.get("date"))
+        if not d:
+            continue
+        incoming_dates.add(d)
+        kwargs: Dict[str, Any] = {
+            "date": d,
+            "notes": (str(row.get("Notes") or row.get("notes") or "").strip() or None),
+        }
+        for sheet_col, attr in NUTRITION_SHEET_TO_ATTR.items():
+            kwargs[attr] = _parse_float(_nutrition_row_value(row, sheet_col, attr))
+        existing = db.get(HealthNutritionLog, d)
+        if existing:
+            for k, v in kwargs.items():
+                if k == "date":
+                    continue
+                setattr(existing, k, v)
+        else:
+            db.add(HealthNutritionLog(**kwargs))
+        count += 1
+
+    deleted = 0
+    if replace:
+        q = db.query(HealthNutritionLog)
+        if incoming_dates:
+            deleted = (
+                q.filter(~HealthNutritionLog.date.in_(incoming_dates)).delete(
+                    synchronize_session=False
+                )
+                or 0
+            )
+        elif count == 0 and len(rows) == 0:
+            # Header-only sheet — keep existing data rather than wiping
+            deleted = 0
+
+    db.commit()
+    return {"upserted": count, "deleted": int(deleted)}
+
+
+def _nutrition_day_color(protein: Optional[float]) -> str:
+    if protein is None:
+        return "red"
+    if protein >= NUTRITION_PROTEIN_TARGET_G:
+        return "green"
+    if protein >= NUTRITION_PROTEIN_OK_G:
+        return "yellow"
+    return "red"
+
+
+def nutrition_calendar(db: Session) -> List[Dict[str, Any]]:
+    """Day rows for macro calendar — color by protein vs 140 lb target."""
+    rows = db.query(HealthNutritionLog).order_by(HealthNutritionLog.date.asc()).all()
+    out = []
+    for r in rows:
+        protein = r.protein
+        color = _nutrition_day_color(protein)
+        pct = None
+        if protein is not None and NUTRITION_PROTEIN_TARGET_G > 0:
+            pct = round(min(100.0, (float(protein) / NUTRITION_PROTEIN_TARGET_G) * 100), 1)
+        out.append(
+            {
+                "date": r.date.isoformat(),
+                "pct": pct if pct is not None else 0,
+                "color": color,
+                "calories": r.calories,
+                "protein": r.protein,
+                "carbs": r.carbs,
+                "fat": r.fat,
+                "fiber": r.fiber,
+                "sugar": r.sugar,
+                "water": r.water,
+                "notes": r.notes or "",
+                "targets": {
+                    "protein_g": NUTRITION_PROTEIN_TARGET_G,
+                    "protein_ok_g": NUTRITION_PROTEIN_OK_G,
+                    "calories": NUTRITION_CALORIES_TARGET,
+                },
+            }
+        )
+    return out
+
+
+def nutrition_series(db: Session) -> List[Dict[str, Any]]:
+    rows = (
+        db.query(HealthNutritionLog).order_by(HealthNutritionLog.date.asc()).all()
+    )
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if all(
+            getattr(r, a) is None
+            for a in (
+                "calories",
+                "protein",
+                "carbs",
+                "fat",
+                "fiber",
+                "sugar",
+                "water",
+            )
+        ) and not (r.notes or "").strip():
+            continue
+        out.append(
+            {
+                "date": r.date.isoformat(),
+                "calories": r.calories,
+                "protein": r.protein,
+                "carbs": r.carbs,
+                "fat": r.fat,
+                "fiber": r.fiber,
+                "sugar": r.sugar,
+                "water": r.water,
+                "notes": r.notes or "",
+            }
+        )
+    return out
+
+
+def nutrition_summary(db: Session) -> Dict[str, Any]:
+    series = nutrition_series(db)
+    latest = series[-1] if series else None
+
+    def avg(key: str, n: int = 7) -> Optional[float]:
+        vals = [float(r[key]) for r in series if r.get(key) is not None][-n:]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    return {
+        "latest": latest,
+        "points": len(series),
+        "avg7_protein": avg("protein"),
+        "avg7_calories": avg("calories"),
+        "targets": {
+            "protein_g": NUTRITION_PROTEIN_TARGET_G,
+            "protein_ok_g": NUTRITION_PROTEIN_OK_G,
+            "calories": NUTRITION_CALORIES_TARGET,
+            "bodyweight_lb": 140,
+        },
+    }
+
+
+def nutrition_notes(db: Session) -> List[Dict[str, Any]]:
+    items = []
+    for r in (
+        db.query(HealthNutritionLog)
+        .filter(HealthNutritionLog.notes.isnot(None))
+        .order_by(HealthNutritionLog.date.desc())
+        .all()
+    ):
+        if r.notes and str(r.notes).strip():
+            items.append(
+                {
+                    "date": r.date.isoformat(),
+                    "notes": str(r.notes).strip(),
+                    "source": "nutrition",
+                }
+            )
+    return items
 

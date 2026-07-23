@@ -248,7 +248,10 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
             // Pull workouts into local DB once after login (like first Oura download)
             try {
                 const syncRes = await api.hevySync();
-                addLog(`Imported ${syncRes.imported} workouts to local cache`);
+                addLog(
+                    `Imported ${syncRes.imported} workouts to local cache` +
+                        (syncRes.cleared != null ? ` (replaced ${syncRes.cleared} old)` : '')
+                );
                 window.dispatchEvent(new Event('hevy-data-synced'));
             } catch (syncErr: any) {
                 addLog(`Login OK — sync later: ${syncErr.message}`);
@@ -266,7 +269,10 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
         setError(null);
         try {
             const res = await api.hevySync();
-            addLog(`Synced ${res.imported} workouts`);
+            addLog(
+                `Synced ${res.imported} workouts` +
+                    (res.cleared != null ? ` (replaced ${res.cleared} old)` : '')
+            );
             setHevyInfo(await api.hevyStatus());
             window.dispatchEvent(new Event('hevy-data-synced'));
         } catch (err: any) {
@@ -476,7 +482,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                 Last sync: {sheetsInfo.last_sync}
                                 {sheetsInfo.last_status ? ` · ${sheetsInfo.last_status}` : ''}
                                 {sheetsInfo.last_counts
-                                    ? ` · supp ${sheetsInfo.last_counts.supplements}, body ${sheetsInfo.last_counts.body}, labs ${sheetsInfo.last_counts.bloodwork}`
+                                    ? ` · supp ${sheetsInfo.last_counts.supplements}, body ${sheetsInfo.last_counts.body}, labs ${sheetsInfo.last_counts.bloodwork}, macros ${sheetsInfo.last_counts.nutrition ?? 0}`
                                     : ''}
                             </p>
                         )}
@@ -498,7 +504,7 @@ export function SettingsPanel({ onClose, compartment = 'recovery' }: SettingsPan
                                         const latest = (r.latest_dates || []).join(', ');
                                         const recent = (r.recent_days || []).join(' · ');
                                         addLog(
-                                            `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), notes ${r.notes_imported ?? 0}` +
+                                            `Synced: supp ${r.supplements} (−${r.supplements_deleted ?? 0}), body ${r.body} (−${r.body_deleted ?? 0}), labs ${r.bloodwork} (−${r.bloodwork_deleted ?? 0}), macros ${r.nutrition ?? 0} (−${r.nutrition_deleted ?? 0}), notes ${r.notes_imported ?? 0}` +
                                                 (latest ? ` · latest: ${latest}` : '')
                                         );
                                         if (recent) addLog(`Recent days → ${recent}`);

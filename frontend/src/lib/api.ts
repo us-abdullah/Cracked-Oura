@@ -289,6 +289,27 @@ export const api = {
         if (!res.ok) throw new Error('Failed bloodwork series');
         return res.json();
     },
+    healthNutritionCalendar: async () => {
+        const res = await fetch(
+            `${BASE_URL}/api/health/nutrition/calendar?_=${Date.now()}`
+        );
+        if (!res.ok) throw new Error('Failed nutrition calendar');
+        return res.json();
+    },
+    healthNutrition: async () => {
+        const res = await fetch(
+            `${BASE_URL}/api/health/nutrition?_=${Date.now()}`
+        );
+        if (!res.ok) throw new Error('Failed nutrition series');
+        return res.json();
+    },
+    healthNutritionNotes: async () => {
+        const res = await fetch(
+            `${BASE_URL}/api/health/nutrition/notes?_=${Date.now()}`
+        );
+        if (!res.ok) throw new Error('Failed nutrition notes');
+        return res.json();
+    },
     healthImport: async (payload: any) => {
         const res = await fetch(`${BASE_URL}/api/health/import`, {
             method: 'POST',
@@ -313,6 +334,7 @@ export const api = {
         supplements_url?: string;
         body_url?: string;
         bloodwork_url?: string;
+        nutrition_url?: string;
         sync_minutes?: number;
     }) => {
         const res = await fetch(`${BASE_URL}/api/health/sheets`, {

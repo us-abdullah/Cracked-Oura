@@ -121,3 +121,57 @@ class HealthBloodwork(Base):
     zinc: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     testosterone: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+# Daily macros / hydration — Google Sheet "Daily Macro Tracker"
+NUTRITION_NUMERIC_COLUMNS = [
+    "Calories",
+    "Protein",
+    "Carbs",
+    "Fat",
+    "Fiber",
+    "Sugar",
+    "Water",
+]
+
+# Targets for ~140 lb active male (calendar colors use protein primarily).
+NUTRITION_BODYWEIGHT_LB = 140
+NUTRITION_PROTEIN_TARGET_G = 140  # ~1 g per lb
+NUTRITION_PROTEIN_OK_G = 98  # ~0.7 g per lb → yellow
+NUTRITION_CALORIES_TARGET = 2200  # soft reference for chips / chart context
+
+
+class HealthNutritionLog(Base):
+    """One row per day — macros + water + optional Notes."""
+
+    __tablename__ = "health_nutrition_log"
+
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    calories: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    protein: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    carbs: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fat: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fiber: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    sugar: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    water: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+NUTRITION_SHEET_TO_ATTR = {
+    "Calories": "calories",
+    "Protein": "protein",
+    "Carbs": "carbs",
+    "Fat": "fat",
+    "Fiber": "fiber",
+    "Sugar": "sugar",
+    "Water": "water",
+    # Common sheet variants
+    "Water (oz)": "water",
+    "Water (OZ)": "water",
+    "Protein (g)": "protein",
+    "Carbs (g)": "carbs",
+    "Fat (g)": "fat",
+    "Fiber (g)": "fiber",
+    "Sugar (g)": "sugar",
+    "Calories (kcal)": "calories",
+}

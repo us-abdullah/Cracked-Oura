@@ -360,3 +360,40 @@ export function buildBloodwork() {
     },
   ];
 }
+
+export function buildNutritionSeries() {
+  const cal = buildHealthCalendar();
+  return cal.filter((_, i) => i % 2 === 0).map((d, i) => ({
+    date: d.date,
+    calories: 2100 + (i % 5) * 40,
+    protein: 120 + (i % 4) * 15,
+    carbs: 200 + (i % 3) * 20,
+    fat: 60 + (i % 3) * 5,
+    fiber: 25 + (i % 4),
+    sugar: 35 + (i % 5) * 2,
+    water: 2.5 + (i % 3) * 0.2,
+    notes: i === 0 ? 'Demo macro day' : '',
+  }));
+}
+
+export function buildNutritionCalendar() {
+  return buildNutritionSeries().map((r) => {
+    const protein = r.protein;
+    const target = 140;
+    const ok = 98;
+    const color =
+      protein >= target ? 'green' : protein >= ok ? 'yellow' : 'red';
+    return {
+      ...r,
+      pct: Math.round(Math.min(100, (protein / target) * 100) * 10) / 10,
+      color,
+      targets: { protein_g: target, protein_ok_g: ok, calories: 2200 },
+    };
+  });
+}
+
+export function buildNutritionNotes() {
+  return buildNutritionSeries()
+    .filter((r) => r.notes)
+    .map((r) => ({ date: r.date, notes: r.notes, source: 'nutrition' }));
+}

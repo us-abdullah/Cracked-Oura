@@ -15,6 +15,9 @@ type Snapshot = {
   health_notes?: any[];
   health_body?: any[];
   health_bloodwork?: any[];
+  health_nutrition_calendar?: any[];
+  health_nutrition?: { series?: any[]; summary?: any };
+  health_nutrition_notes?: any[];
   days?: Record<string, any>;
   settings?: any;
   sheets?: any;
@@ -55,6 +58,69 @@ const desktopOnly = async (action: string) =>
     message: `“${action}” runs on the desktop app. Refresh the phone snapshot after Sync there.`,
     status: 'ok',
   });
+
+/** Match desktop /api/health/body shape: { series, summary }. */
+function wrapBodyPayload(raw: any) {
+  if (raw && !Array.isArray(raw) && Array.isArray(raw.series)) {
+    return raw;
+  }
+  const series = (Array.isArray(raw) ? raw : []).filter(
+    (r) => r && (r.weight != null || r.body_fat_pct != null || String(r.notes || '').trim())
+  );
+  const weights = series.filter((r: any) => r.weight != null);
+  const latest = series.length ? series[series.length - 1] : null;
+  const prevW = weights.length >= 2 ? weights[weights.length - 2].weight : null;
+  const latestW = weights.length ? weights[weights.length - 1].weight : null;
+  const trail = weights.slice(-7).map((w: any) => Number(w.weight));
+  return {
+    series,
+    summary: {
+      latest,
+      points: series.length,
+      weight_points: weights.length,
+      body_fat_points: series.filter((r: any) => r.body_fat_pct != null).length,
+      delta_weight:
+        latestW != null && prevW != null
+          ? Math.round((Number(latestW) - Number(prevW)) * 100) / 100
+          : null,
+      avg7_weight: trail.length
+        ? Math.round((trail.reduce((a: number, b: number) => a + b, 0) / trail.length) * 100) /
+          100
+        : null,
+      min_weight: weights.length
+        ? Math.min(...weights.map((w: any) => Number(w.weight)))
+        : null,
+      max_weight: weights.length
+        ? Math.max(...weights.map((w: any) => Number(w.weight)))
+        : null,
+    },
+  };
+}
+
+function bodyRowsFromSnap(s: Snapshot) {
+  const raw = s.health_body;
+  if (raw && !Array.isArray(raw) && Array.isArray((raw as any).series)) {
+    return (raw as any).series as any[];
+  }
+  return (Array.isArray(raw) ? raw : []) as any[];
+}
+
+/** Match desktop /api/health/bloodwork shape: { series, latest }. */
+function wrapBloodworkPayload(raw: any) {
+  if (raw && !Array.isArray(raw) && Array.isArray(raw.series)) {
+    return raw;
+  }
+  const series = Array.isArray(raw) ? raw : [];
+  return { series, latest: series.length ? series[series.length - 1] : null };
+}
+
+function bloodRowsFromSnap(s: Snapshot) {
+  const raw = s.health_bloodwork;
+  if (raw && !Array.isArray(raw) && Array.isArray((raw as any).series)) {
+    return (raw as any).series as any[];
+  }
+  return (Array.isArray(raw) ? raw : []) as any[];
+}
 
 /** Match desktop useOuraData: widgets use singular sleep_session = longest session. */
 function longestSleepSession(day: any) {
@@ -190,12 +256,20 @@ export const api = {
   healthCalendar: async () => ok((await snap()).health_calendar || []),
   healthRates: async () => ok((await snap()).health_rates || []),
   healthNotes: async () => ok((await snap()).health_notes || []),
-  healthBodyStatus: async () =>
-    ok({ rows: ((await snap()).health_body || []).length }),
-  healthBody: async () => ok((await snap()).health_body || []),
+  healthBodyStatus: async () => {
+    const rows = bodyRowsFromSnap(await snap());
+    return ok({ rows: rows.filter((r) => r?.weight != null).length });
+  },
+  healthBody: async () => ok(wrapBodyPayload((await snap()).health_body)),
   healthBloodworkStatus: async () =>
-    ok({ rows: ((await snap()).health_bloodwork || []).length }),
-  healthBloodwork: async () => ok((await snap()).health_bloodwork || []),
+    ok({ rows: bloodRowsFromSnap(await snap()).length }),
+  healthBloodwork: async () => ok(wrapBloodworkPayload((await snap()).health_bloodwork)),
+  healthNutritionCalendar: async () =>
+    ok((await snap()).health_nutrition_calendar || []),
+  healthNutrition: async () =>
+    ok((await snap()).health_nutrition || { series: [], summary: null }),
+  healthNutritionNotes: async () =>
+    ok((await snap()).health_nutrition_notes || []),
   healthImport: () => desktopOnly('Health import'),
   healthSeed: () => desktopOnly('Health seed'),
   healthSheetsConfig: async () => ok((await snap()).sheets || {}),

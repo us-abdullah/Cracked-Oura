@@ -8,6 +8,9 @@ import {
   buildHealthCalendar,
   buildHealthNotes,
   buildHealthRates,
+  buildNutritionCalendar,
+  buildNutritionNotes,
+  buildNutritionSeries,
   dailyDataFor,
   healthLayout,
   recoveryLayout,
@@ -160,9 +163,56 @@ export const api = {
   healthRates: async () => ok(buildHealthRates()),
   healthNotes: async () => ok(buildHealthNotes()),
   healthBodyStatus: async () => ok({ rows: buildBodySeries().length }),
-  healthBody: async () => ok(buildBodySeries()),
+  healthBody: async () => {
+    const series = buildBodySeries();
+    const weights = series.filter((r) => r.weight != null);
+    return ok({
+      series,
+      summary: {
+        latest: series.at(-1) || null,
+        points: series.length,
+        weight_points: weights.length,
+        body_fat_points: series.filter((r) => r.body_fat_pct != null).length,
+        delta_weight:
+          weights.length >= 2
+            ? Math.round(
+                (Number(weights.at(-1)!.weight) - Number(weights.at(-2)!.weight)) * 100
+              ) / 100
+            : null,
+        avg7_weight: weights.length
+          ? Math.round(
+              (weights.slice(-7).reduce((a, r) => a + Number(r.weight), 0) /
+                Math.min(7, weights.length)) *
+                100
+            ) / 100
+          : null,
+        min_weight: weights.length
+          ? Math.min(...weights.map((r) => Number(r.weight)))
+          : null,
+        max_weight: weights.length
+          ? Math.max(...weights.map((r) => Number(r.weight)))
+          : null,
+      },
+    });
+  },
   healthBloodworkStatus: async () => ok({ rows: buildBloodwork().length }),
-  healthBloodwork: async () => ok(buildBloodwork()),
+  healthBloodwork: async () => {
+    const series = buildBloodwork();
+    return ok({ series, latest: series.at(-1) || null });
+  },
+  healthNutritionCalendar: async () => ok(buildNutritionCalendar()),
+  healthNutrition: async () =>
+    ok({
+      series: buildNutritionSeries(),
+      summary: {
+        latest: buildNutritionSeries().at(-1) || null,
+        points: buildNutritionSeries().length,
+        avg7_protein: 135,
+        avg7_calories: 2150,
+        targets: { protein_g: 140, protein_ok_g: 98, calories: 2200, bodyweight_lb: 140 },
+      },
+    }),
+  healthNutritionNotes: async () => ok(buildNutritionNotes()),
   healthImport: () => webOnly('Health CSV import'),
   healthSeed: () => webOnly('Health seed'),
   healthSheetsConfig: async () =>
@@ -173,7 +223,8 @@ export const api = {
       sync_minutes: 5,
       last_sync: 'web-mirror',
       last_status: 'demo',
-      last_counts: { supplements: 30, body: 10, bloodwork: 1 },
+      last_counts: { supplements: 30, body: 10, bloodwork: 1, nutrition: 12 },
+      nutrition_url: '',
     }),
   healthSheetsSave: () => webOnly('Save sheets config'),
   healthSheetsSync: () => webOnly('Sheets sync'),

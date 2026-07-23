@@ -43,7 +43,8 @@ def _ensure_health_dashboard():
     # Migrate placeholder body/bloodwork widgets + short layouts to analytics layout
     try:
         dash = (existing.get("dashboards") or [None])[0] or {}
-        wlist = dash.get("widgets") or []
+        wlist = list(dash.get("widgets") or [])
+        layout = list(dash.get("layout") or [])
         types = {w.get("type") for w in wlist}
         needs = (
             "health_body_empty" in types
@@ -54,7 +55,7 @@ def _ensure_health_dashboard():
                     next(
                         (
                             L.get("h") or 0
-                            for L in (dash.get("layout") or [])
+                            for L in layout
                             if L.get("i") == w.get("id")
                         ),
                         0,
@@ -67,8 +68,58 @@ def _ensure_health_dashboard():
         if needs:
             existing = DEFAULT_HEALTH_DASHBOARD
             config_manager.save_compartment_dashboard("health", existing)
+            return existing
+
+        # Soft-add nutrition widgets for existing dashboards
+        nutrition_types = {
+            "health_nutrition_calendar",
+            "health_nutrition_chart",
+            "health_nutrition_notes",
+        }
+        if not nutrition_types.intersection(types):
+            max_y = 0
+            for L in layout:
+                max_y = max(max_y, int(L.get("y") or 0) + int(L.get("h") or 0))
+            new_widgets = [
+                {
+                    "id": "nutrition-cal",
+                    "type": "health_nutrition_calendar",
+                    "title": "Nutrition Calendar",
+                    "width": "col-span-8",
+                    "height": "h-80",
+                    "config": {},
+                },
+                {
+                    "id": "nutrition-notes",
+                    "type": "health_nutrition_notes",
+                    "title": "Nutrition Notes",
+                    "width": "col-span-4",
+                    "height": "h-80",
+                    "config": {},
+                },
+                {
+                    "id": "nutrition-chart",
+                    "type": "health_nutrition_chart",
+                    "title": "Macro Trends",
+                    "width": "col-span-12",
+                    "height": "h-64",
+                    "config": {},
+                },
+            ]
+            new_layout = [
+                {"i": "nutrition-cal", "x": 0, "y": max_y, "w": 8, "h": 14},
+                {"i": "nutrition-notes", "x": 8, "y": max_y, "w": 4, "h": 14},
+                {"i": "nutrition-chart", "x": 0, "y": max_y + 14, "w": 12, "h": 10},
+            ]
+            dash["widgets"] = wlist + new_widgets
+            dash["layout"] = layout + new_layout
+            existing = {
+                "dashboards": [dash] + (existing.get("dashboards") or [])[1:],
+                "activeDashboardId": existing.get("activeDashboardId"),
+            }
+            config_manager.save_compartment_dashboard("health", existing)
     except Exception:
-        pass
+        logger.exception("Health dashboard migrate failed")
     return existing
 
 
@@ -103,7 +154,7 @@ async def seed_placeholder(db: Session = Depends(get_db)):
 
 @router.post("/import")
 async def import_health(payload: ImportPayload, db: Session = Depends(get_db)):
-    result = {"supplements": 0, "body": 0, "bloodwork": 0}
+    result = {"supplements": 0, "body": 0, "bloodwork": 0, "nutrition": 0}
     try:
         if payload.csv_text:
             rows = health_service.parse_csv_rows(payload.csv_text)
@@ -112,6 +163,10 @@ async def import_health(payload: ImportPayload, db: Session = Depends(get_db)):
                 result["body"] = health_service.upsert_body_rows(db, rows)["upserted"]
             elif sheet == "bloodwork":
                 result["bloodwork"] = health_service.upsert_bloodwork_rows(db, rows)[
+                    "upserted"
+                ]
+            elif sheet == "nutrition":
+                result["nutrition"] = health_service.upsert_nutrition_rows(db, rows)[
                     "upserted"
                 ]
             else:
@@ -140,6 +195,7 @@ class SheetsConfigBody(BaseModel):
     supplements_url: Optional[str] = None
     body_url: Optional[str] = None
     bloodwork_url: Optional[str] = None
+    nutrition_url: Optional[str] = None
     sync_minutes: Optional[int] = None
 
 
@@ -157,6 +213,8 @@ async def save_sheets_config(body: SheetsConfigBody):
         updates["health_sheets_body_url"] = body.body_url.strip()
     if body.bloodwork_url is not None:
         updates["health_sheets_bloodwork_url"] = body.bloodwork_url.strip()
+    if body.nutrition_url is not None:
+        updates["health_sheets_nutrition_url"] = body.nutrition_url.strip()
     if body.sync_minutes is not None:
         updates["health_sheets_sync_minutes"] = max(1, min(120, int(body.sync_minutes)))
     if updates:
@@ -189,8 +247,18 @@ async def supplement_calendar(db: Session = Depends(get_db)):
 
 
 @router.get("/supplements/rates")
-async def supplement_rates(db: Session = Depends(get_db)):
-    return health_service.adherence_rates(db)
+async def supplement_rates(
+    year: int | None = None,
+    month: int | None = None,
+    db: Session = Depends(get_db),
+):
+    if (year is None) ^ (month is None):
+        raise HTTPException(
+            status_code=400, detail="Provide both year and month, or neither"
+        )
+    if month is not None and not (1 <= month <= 12):
+        raise HTTPException(status_code=400, detail="month must be 1-12")
+    return health_service.adherence_rates(db, year=year, month=month)
 
 
 @router.get("/supplements/notes")
@@ -222,3 +290,21 @@ async def bloodwork_series(db: Session = Depends(get_db)):
         "series": health_service.bloodwork_series(db),
         "latest": health_service.bloodwork_latest(db),
     }
+
+
+@router.get("/nutrition/calendar")
+async def nutrition_calendar(db: Session = Depends(get_db)):
+    return health_service.nutrition_calendar(db)
+
+
+@router.get("/nutrition")
+async def nutrition_series(db: Session = Depends(get_db)):
+    return {
+        "series": health_service.nutrition_series(db),
+        "summary": health_service.nutrition_summary(db),
+    }
+
+
+@router.get("/nutrition/notes")
+async def nutrition_notes(db: Session = Depends(get_db)):
+    return health_service.nutrition_notes(db)

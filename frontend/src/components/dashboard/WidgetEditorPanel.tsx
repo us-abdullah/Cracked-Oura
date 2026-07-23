@@ -181,6 +181,9 @@ export function WidgetEditorPanel({ onClose, onSave, onChange, widget, compartme
                                     <SelectItem value="health_notes">Notes Feed</SelectItem>
                                     <SelectItem value="health_body">Weight & Body</SelectItem>
                                     <SelectItem value="health_bloodwork">Bloodwork</SelectItem>
+                                    <SelectItem value="health_nutrition_calendar">Nutrition Calendar</SelectItem>
+                                    <SelectItem value="health_nutrition_chart">Nutrition Chart</SelectItem>
+                                    <SelectItem value="health_nutrition_notes">Nutrition Notes</SelectItem>
                                 </>
                             )}
                             {compartment === 'recovery' && (
