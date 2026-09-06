@@ -79,7 +79,8 @@ export function DashboardGrid({
             widget.type !== 'table';
 
         const isRadar = widget.type === 'radar';
-        const isHealthCal = widget.type === 'health_adherence_calendar';
+        const isHealthCal = widget.type === 'health_adherence_calendar' ||
+            widget.type === 'health_nutrition_calendar';
         const minH = stacked
             ? isHealthCal
                 ? Math.max(560, (layoutItem.h || 8) * 56)

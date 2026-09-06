@@ -846,8 +846,10 @@ function NutritionCalendar() {
 
     return (
         <div
+            data-nutrition-calendar
             className={cn(
-                'h-full flex flex-col min-h-0',
+                'flex flex-col min-w-0 gap-3',
+                isMobileWeb ? 'h-auto' : 'h-full min-h-0 overflow-y-auto',
                 isMobileWeb ? 'gap-4 p-1' : 'gap-3 p-2'
             )}
         >
@@ -855,12 +857,12 @@ function NutritionCalendar() {
                 <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-8 w-8 shrink-0"
                     onClick={() => setCursor((c) => subMonths(c, 1))}
                 >
                     <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <div className="text-center">
+                <div className="min-w-0 text-center">
                     <div className="text-sm font-semibold tracking-tight">{monthLabel}</div>
                     <div className="text-[10px] text-muted-foreground">
                         Green = protein ≥ {target}g (≈1g/lb @ 140 lb)
@@ -869,7 +871,7 @@ function NutritionCalendar() {
                 <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-8 w-8 shrink-0"
                     onClick={() => setCursor((c) => addMonths(c, 1))}
                 >
                     <ChevronRight className="h-4 w-4" />
@@ -879,7 +881,7 @@ function NutritionCalendar() {
             <div
                 className={cn(
                     'grid grid-cols-7 text-muted-foreground text-center shrink-0',
-                    isMobileWeb ? 'gap-2 text-[10px]' : 'gap-1 text-[11px]'
+                    isMobileWeb ? 'gap-1 text-[10px]' : 'gap-1 text-[11px]'
                 )}
             >
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
@@ -891,8 +893,8 @@ function NutritionCalendar() {
 
             <div
                 className={cn(
-                    'grid grid-cols-7 flex-1 min-h-0',
-                    isMobileWeb ? 'gap-2.5 auto-rows-[minmax(3.75rem,1fr)]' : 'gap-1.5 auto-rows-fr'
+                    'grid grid-cols-7 shrink-0 auto-rows-[minmax(4rem,1fr)]',
+                    isMobileWeb ? 'gap-1' : 'gap-1.5'
                 )}
             >
                 {cells.map((day) => {
@@ -925,8 +927,8 @@ function NutritionCalendar() {
                             disabled={!row}
                             onClick={() => row && setSelected(row)}
                             className={cn(
-                                'relative rounded-lg border text-left transition-colors flex flex-col justify-between',
-                                isMobileWeb ? 'p-2 min-h-[3.75rem]' : 'p-1.5 min-h-[52px]',
+                                'relative min-w-0 rounded-lg border text-left transition-colors flex flex-col justify-between',
+                                isMobileWeb ? 'px-1 py-1.5' : 'p-1.5',
                                 inMonth
                                     ? 'border-border/60 bg-card/40'
                                     : 'border-transparent bg-transparent opacity-35',
@@ -973,8 +975,8 @@ function NutritionCalendar() {
 
             <div
                 className={cn(
-                    'flex text-muted-foreground shrink-0 px-0.5',
-                    isMobileWeb ? 'flex-col gap-1.5 text-[11px]' : 'items-center gap-3 text-[10px]'
+                    'flex flex-wrap items-center text-muted-foreground shrink-0 px-0.5',
+                    isMobileWeb ? 'gap-x-3 gap-y-1.5 text-[11px]' : 'gap-x-3 gap-y-1 text-[10px]'
                 )}
             >
                 <span className="inline-flex items-center gap-1">
@@ -990,14 +992,9 @@ function NutritionCalendar() {
 
             {selected && (
                 <div
-                    className={cn(
-                        'border-t pt-3',
-                        isMobileWeb
-                            ? 'shrink-0 max-h-none overflow-visible'
-                            : 'shrink-0 max-h-[38%] overflow-auto'
-                    )}
+                    className="min-w-0 shrink-0 border-t pt-3"
                 >
-                    <div className="flex items-baseline justify-between gap-2 mb-2">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 mb-2">
                         <p className="text-sm font-medium">
                             {format(parseISO(selected.date), 'EEEE, MMM d')}
                         </p>
@@ -1005,7 +1002,7 @@ function NutritionCalendar() {
                             {selected.pct}% of protein goal
                         </p>
                     </div>
-                    <div className={cn('grid grid-cols-2 sm:grid-cols-4', isMobileWeb ? 'gap-2' : 'gap-1.5')}>
+                    <div className={cn('grid grid-cols-[repeat(auto-fit,minmax(min(100%,5rem),1fr))]', isMobileWeb ? 'gap-2' : 'gap-1.5')}>
                         {(
                             [
                                 ['Calories', selected.calories, ''],
